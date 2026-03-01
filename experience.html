@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Experience — Anand E Suresh</title>
+<link rel="stylesheet" href="style.css"/>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
+<script src="app.js"></script>
+</head>
+<body>
+<div id="navMount"></div>
+<div class="page">
+  <section class="section" style="padding-top:80px">
+    <div class="section-label fade-in">// Work & Internships</div>
+    <h1 class="section-title fade-in">Experience</h1>
+    <div id="expOut"></div>
+    <div id="emptyState" style="text-align:center;padding:80px 0">
+      <div style="font-size:3rem;margin-bottom:16px">🌱</div>
+      <div style="font-family:'JetBrains Mono',monospace;font-size:.9rem;color:var(--muted);letter-spacing:2px">Just getting started!</div>
+      <div style="font-size:.85rem;color:var(--muted);margin-top:8px">Add internships & experience via Admin Panel</div>
+    </div>
+  </section>
+</div>
+<div id="_toast" class="toast"></div>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  initPage('');
+  getSiteData('experience').then(function(d) {
+    var list = (d && d.list) ? d.list : [];
+    if (!list.length) return;
+    document.getElementById('emptyState').style.display='none';
+    document.getElementById('expOut').innerHTML = '<div class="timeline">'
+      + list.map(function(e) {
+          return '<div class="timeline-item fade-in"><div class="timeline-dot"></div>'
+            + '<div class="timeline-year">'+e.period+'</div>'
+            + '<div class="timeline-title">'+e.role+'</div>'
+            + '<div class="timeline-sub">'+e.company+' · '+e.type+'</div>'
+            + '<p style="font-size:.88rem;color:var(--muted);line-height:1.6;margin-top:8px">'+e.description+'</p>'
+            + '<div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">'+(e.tags||[]).map(function(t){return '<span class="project-tag">'+t+'</span>';}).join('')+'</div></div>';
+        }).join('') + '</div>';
+    reObserve();
+  });
+});
+</script>
+</body>
+</html>

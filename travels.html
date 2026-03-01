@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Travels — Anand E Suresh</title>
+<link rel="stylesheet" href="style.css"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
+<script src="app.js"></script>
+</head>
+<body>
+<div id="navMount"></div>
+<div class="page">
+  <section class="section" style="padding-top:80px">
+    <div class="section-label fade-in">// Traveller Not Tourist</div>
+    <h1 class="section-title fade-in">Places I've Been</h1>
+    <p class="fade-in" style="color:var(--muted);margin-bottom:32px;font-size:.95rem">Click the glowing dots to explore each place. Drag to rotate.</p>
+    <div id="globe-wrap">
+      <canvas id="globe-canvas"></canvas>
+      <div class="place-info-panel" id="infoPanel">
+        <button class="place-info-close" id="infoClose">✕</button>
+        <div class="place-info-name" id="infoName"></div>
+        <div class="place-info-desc" id="infoDesc"></div>
+        <div class="place-info-imgs" id="infoImgs"></div>
+      </div>
+      <div class="globe-hint">🌍 Drag to rotate · Click dots to explore</div>
+    </div>
+    <div class="section-label" style="margin-top:8px">// Visited Places</div>
+    <div class="places-list" id="placesList"></div>
+  </section>
+</div>
+<div id="lightbox"><button id="lightbox-close">✕</button><img id="lightbox-img" src="" alt=""/></div>
+<div id="_toast" class="toast"></div>
+<script>
+var DEFAULT_PLACES = [
+  {name:'Delhi',lat:28.6139,lng:77.2090,desc:'The capital — history, chaos, and culture all at once.',images:[]},
+  {name:'Srinagar',lat:34.0837,lng:74.7973,desc:'Dal Lake, houseboats, and peaceful mornings in Kashmir.',images:[]},
+  {name:'Kasol',lat:32.0102,lng:77.3148,desc:'Tiny Himalayan village on the Parvati River — pure magic.',images:[]},
+  {name:'Pulga Village',lat:31.9964,lng:77.4020,desc:'Remote hamlet beyond Kasol — untouched beauty.',images:[]},
+  {name:'Chalal Village',lat:32.0045,lng:77.3202,desc:'Across the river from Kasol — riverside trails and solitude.',images:[]},
+  {name:'Chittarikkal',lat:12.2985,lng:75.1345,desc:'My hometown in Kerala — where it all began.',images:[]}
+];
+var places = DEFAULT_PLACES.slice();
+
+function initGlobe() {
+  var canvas   = document.getElementById('globe-canvas');
+  var wrap     = document.getElementById('globe-wrap');
+  var renderer = new THREE.WebGLRenderer({canvas:canvas,antialias:true,alpha:true});
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
+  renderer.setClearColor(0x000000,0);
+  var scene  = new THREE.Scene();
+  var camera = new THREE.PerspectiveCamera(45,1,0.1,100);
+  camera.position.z = 2.8;
+
+  function resize() {
+    var w=wrap.clientWidth, h=wrap.clientHeight;
+    renderer.setSize(w,h,false); camera.aspect=w/h; camera.updateProjectionMatrix();
+  }
+  resize(); window.addEventListener('resize',resize);
+
+  var earth = new THREE.Mesh(new THREE.SphereGeometry(1,64,64), new THREE.MeshPhongMaterial({color:0x1a2e4a,emissive:0x0a1520,shininess:25}));
+  scene.add(earth);
+  scene.add(new THREE.Mesh(new THREE.SphereGeometry(1.001,24,24),new THREE.MeshBasicMaterial({color:0x1e3a5f,wireframe:true,opacity:.12,transparent:true})));
+  scene.add(new THREE.Mesh(new THREE.SphereGeometry(1.1,32,32),new THREE.MeshBasicMaterial({color:0x47c8ff,opacity:.05,transparent:true,side:THREE.BackSide})));
+  scene.add(new THREE.AmbientLight(0xffffff,0.4));
+  var dir=new THREE.DirectionalLight(0xffffff,1); dir.position.set(5,3,5); scene.add(dir);
+
+  function ll3d(lat,lng,r) {
+    r=r||1.02;
+    var phi=(90-lat)*Math.PI/180, theta=(lng+180)*Math.PI/180;
+    return new THREE.Vector3(-r*Math.sin(phi)*Math.cos(theta),r*Math.cos(phi),r*Math.sin(phi)*Math.sin(theta));
+  }
+
+  var dotGeo=new THREE.SphereGeometry(0.018,8,8);
+  var ringGeo=new THREE.RingGeometry(0.022,0.034,16);
+  var dotMeshes=[];
+
+  function buildDots() {
+    dotMeshes.forEach(function(d){earth.remove(d);}); dotMeshes=[];
+    places.forEach(function(p,i) {
+      var dot=new THREE.Mesh(dotGeo,new THREE.MeshBasicMaterial({color:0xe8ff47}));
+      dot.position.copy(ll3d(p.lat,p.lng)); dot.userData={idx:i};
+      earth.add(dot); dotMeshes.push(dot);
+      var ring=new THREE.Mesh(ringGeo,new THREE.MeshBasicMaterial({color:0xe8ff47,opacity:.4,transparent:true,side:THREE.DoubleSide}));
+      ring.position.copy(ll3d(p.lat,p.lng)); ring.lookAt(new THREE.Vector3(0,0,0));
+      ring.userData={pulse:true,idx:i}; earth.add(ring); dotMeshes.push(ring);
+    });
+  }
+  buildDots();
+
+  var ray=new THREE.Raycaster(), mp=new THREE.Vector2();
+  canvas.addEventListener('click',function(e){
+    var r=canvas.getBoundingClientRect();
+    mp.set(((e.clientX-r.left)/r.width)*2-1,-((e.clientY-r.top)/r.height)*2+1);
+    ray.setFromCamera(mp,camera);
+    var hits=ray.intersectObjects(dotMeshes.filter(function(d){return !d.userData.pulse;}));
+    if(hits.length) showInfo(hits[0].object.userData.idx);
+  });
+
+  function showInfo(i) {
+    var p=places[i];
+    document.getElementById('infoName').textContent=p.name;
+    document.getElementById('infoDesc').textContent=p.desc||'';
+    var imgs=document.getElementById('infoImgs'); imgs.innerHTML='';
+    (p.images||[]).forEach(function(src){
+      var img=document.createElement('img'); img.src=src;
+      img.onclick=function(){openLB(src);}; imgs.appendChild(img);
+    });
+    document.getElementById('infoPanel').classList.add('visible');
+  }
+  document.getElementById('infoClose').onclick=function(){document.getElementById('infoPanel').classList.remove('visible');};
+
+  var dragging=false,prev={x:0,y:0},vel={x:0,y:0};
+  canvas.addEventListener('mousedown',function(e){dragging=true;prev={x:e.clientX,y:e.clientY};vel={x:0,y:0};});
+  window.addEventListener('mouseup',function(){dragging=false;});
+  canvas.addEventListener('mousemove',function(e){if(!dragging)return;vel.y=(e.clientX-prev.x)*.005;vel.x=(e.clientY-prev.y)*.005;prev={x:e.clientX,y:e.clientY};});
+  canvas.addEventListener('touchstart',function(e){dragging=true;prev={x:e.touches[0].clientX,y:e.touches[0].clientY};},{passive:true});
+  canvas.addEventListener('touchend',function(){dragging=false;});
+  canvas.addEventListener('touchmove',function(e){if(!dragging)return;vel.y=(e.touches[0].clientX-prev.x)*.005;vel.x=(e.touches[0].clientY-prev.y)*.005;prev={x:e.touches[0].clientX,y:e.touches[0].clientY};},{passive:true});
+
+  var t=0;
+  (function animate(){
+    requestAnimationFrame(animate); t+=.01;
+    if(!dragging){vel.x*=.92;vel.y*=.92;earth.rotation.y+=.0015+vel.y;}
+    else earth.rotation.y+=vel.y;
+    earth.rotation.x=Math.max(-Math.PI/3,Math.min(Math.PI/3,earth.rotation.x+vel.x));
+    dotMeshes.filter(function(d){return d.userData.pulse;}).forEach(function(r){r.material.opacity=.15+.3*Math.abs(Math.sin(t+r.userData.idx));});
+    renderer.render(scene,camera);
+  })();
+
+  window._buildDots = buildDots; // expose for Firebase reload
+}
+
+function openLB(src){document.getElementById('lightbox-img').src=src;document.getElementById('lightbox').classList.add('open');}
+document.getElementById('lightbox-close').onclick=function(){document.getElementById('lightbox').classList.remove('open');};
+document.getElementById('lightbox').onclick=function(e){if(e.target===document.getElementById('lightbox'))document.getElementById('lightbox').classList.remove('open');};
+
+function renderChips() {
+  document.getElementById('placesList').innerHTML=places.map(function(p,i){
+    return '<span class="place-chip" onclick="showInfoById('+i+')">📍 '+p.name+'</span>';
+  }).join('');
+}
+function showInfoById(i) {
+  // trigger the globe's showInfo via a fake click is complex; just show panel directly
+  document.getElementById('infoName').textContent=places[i].name;
+  document.getElementById('infoDesc').textContent=places[i].desc||'';
+  var imgs=document.getElementById('infoImgs'); imgs.innerHTML='';
+  (places[i].images||[]).forEach(function(src){var img=document.createElement('img');img.src=src;img.onclick=function(){openLB(src);};imgs.appendChild(img);});
+  document.getElementById('infoPanel').classList.add('visible');
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+  initPage('');
+  initGlobe();
+  renderChips();
+  getSiteData('travels').then(function(d) {
+    if (d && d.places && d.places.length) {
+      places = d.places;
+      if (window._buildDots) window._buildDots();
+      renderChips();
+    }
+  });
+});
+</script>
+</body>
+</html>
