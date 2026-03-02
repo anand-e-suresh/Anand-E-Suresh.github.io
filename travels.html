@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Travels — Anand E Suresh</title>
+<link rel="stylesheet" href="style.css"/>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script src="app.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+</head>
+<body>
+<div id="navMount"></div>
+<div class="page">
+  <section class="section">
+    <span class="section-eyebrow fade-in">// Travels</span>
+    <h1 class="section-title fade-in">Places<br/><strong>I've Been</strong></h1>
+    <div id="globe-wrap">
+      <canvas id="globe-canvas"></canvas>
+      <div class="globe-hint">Drag to rotate &middot; Click markers to explore</div>
+      <div class="place-panel" id="placePanel">
+        <button class="place-panel-close" id="ppClose">&#10005;</button>
+        <div class="place-panel-name" id="ppName"></div>
+        <div class="place-panel-desc" id="ppDesc"></div>
+        <div class="place-panel-imgs" id="ppImgs"></div>
+      </div>
+    </div>
+    <div id="placesList" class="places-list fade-in"></div>
+  </section>
+</div>
+<div id="lightbox"><button id="lightbox-close">&#10005;</button><img id="lightbox-img" src="" alt=""/></div>
+<div id="_toast" class="toast"></div>
+<script>
+var placesData = [];
+document.getElementById('lightbox-close').onclick = function() { document.getElementById('lightbox').classList.remove('open'); };
+document.getElementById('lightbox').onclick = function(e) { if(e.target===this) this.classList.remove('open'); };
+document.getElementById('ppClose').onclick = function() { document.getElementById('placePanel').classList.remove('visible'); };
+function openLB(src) { document.getElementById('lightbox-img').src=src; document.getElementById('lightbox').classList.add('open'); }
+
+function initGlobe() {
+  var canvas = document.getElementById('globe-canvas');
+  var wrap   = document.getElementById('globe-wrap');
+  var W = wrap.clientWidth, H = wrap.clientHeight;
+
+  var renderer = new THREE.WebGLRenderer({canvas:canvas, antialias:true, alpha:true});
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
+  renderer.setSize(W, H);
+
+  var scene  = new THREE.Scene();
+  var camera = new THREE.PerspectiveCamera(42, W/H, 0.1, 100);
+  camera.position.z = 2.5;
+
+  // Star field background
+  var starGeo = new THREE.BufferGeometry();
+  var starVerts = [];
+  for(var i=0;i<8000;i++){
+    var r=90, theta=2*Math.PI*Math.random(), phi=Math.acos(2*Math.random()-1);
+    starVerts.push(r*Math.sin(phi)*Math.cos(theta), r*Math.sin(phi)*Math.sin(theta), r*Math.cos(phi));
+  }
+  starGeo.setAttribute('position', new THREE.Float32BufferAttribute(starVerts,3));
+  scene.add(new THREE.Points(starGeo, new THREE.PointsMaterial({color:0xffffff,size:0.15,transparent:true,opacity:0.7})));
+
+  // Load NASA Blue Marble texture - most reliable public domain Earth texture
+  var loader = new THREE.TextureLoader();
+  loader.crossOrigin = 'anonymous';
+
+  var earthMat = new THREE.MeshPhongMaterial({
+    color: 0x2244aa,
+    specular: new THREE.Color(0x112233),
+    shininess: 15
+  });
+  var earth = new THREE.Mesh(new THREE.SphereGeometry(1,80,80), earthMat);
+  scene.add(earth);
+
+  // Try loading real NASA texture from multiple reliable sources
+  var textureSources = [
+    'https://unpkg.com/three-globe/example/img/earth-blue-marble.jpg',
+    'https://raw.githubusercontent.com/turban/webgl-earth/master/images/2_no_clouds_4k.jpg',
+    'https://raw.githubusercontent.com/vasturiano/three-globe/master/example/img/earth-blue-marble.jpg'
+  ];
+
+  function tryLoadTexture(idx) {
+    if (idx >= textureSources.length) {
+      // All failed — use high-quality canvas fallback
+      earthMat.map = buildFallbackTexture();
+      earthMat.color = new THREE.Color(0xffffff);
+      earthMat.needsUpdate = true;
+      return;
+    }
+    loader.load(textureSources[idx],
+      function(tex) {
+        earthMat.map = tex;
+        earthMat.color = new THREE.Color(0xffffff);
+        earthMat.needsUpdate = true;
+      },
+      undefined,
+      function() { tryLoadTexture(idx+1); }
+    );
+  }
+  tryLoadTexture(0);
+
+  // Atmosphere
+  scene.add(new THREE.Mesh(
+    new THREE.SphereGeometry(1.02,32,32),
+    new THREE.MeshBasicMaterial({color:0x4488cc,opacity:0.08,transparent:true,side:THREE.BackSide})
+  ));
+
+  // Lights
+  scene.add(new THREE.AmbientLight(0xffffff, 0.5));
+  var sun = new THREE.DirectionalLight(0xfff8e8, 0.9);
+  sun.position.set(5,3,5); scene.add(sun);
+
+  function ll3d(lat,lng,r){
+    r=r||1.025;
+    var phi=(90-lat)*Math.PI/180, theta=(lng+180)*Math.PI/180;
+    return new THREE.Vector3(-r*Math.sin(phi)*Math.cos(theta), r*Math.cos(phi), r*Math.sin(phi)*Math.sin(theta));
+  }
+
+  var markers=[];
+  function plotPlaces(places){
+    markers.forEach(function(m){earth.remove(m);}); markers=[];
+    places.forEach(function(p,i){
+      if(p.lat==null||p.lng==null) return;
+      var dot=new THREE.Mesh(new THREE.SphereGeometry(0.018,10,10),new THREE.MeshBasicMaterial({color:0xc8e63c}));
+      dot.position.copy(ll3d(p.lat,p.lng)); dot.userData={placeIdx:i};
+      earth.add(dot); markers.push(dot);
+      var ring=new THREE.Mesh(new THREE.RingGeometry(0.024,0.036,20),new THREE.MeshBasicMaterial({color:0xc8e63c,opacity:0.5,transparent:true,side:THREE.DoubleSide}));
+      ring.position.copy(ll3d(p.lat,p.lng)); ring.lookAt(new THREE.Vector3(0,0,0));
+      ring.userData={pulse:true}; earth.add(ring); markers.push(ring);
+    });
+  }
+
+  var ray=new THREE.Raycaster(), mouse=new THREE.Vector2(), didDrag=false;
+  canvas.addEventListener('click',function(e){
+    if(didDrag) return;
+    var r=canvas.getBoundingClientRect();
+    mouse.x=((e.clientX-r.left)/r.width)*2-1;
+    mouse.y=-((e.clientY-r.top)/r.height)*2+1;
+    ray.setFromCamera(mouse,camera);
+    var hits=ray.intersectObjects(markers.filter(function(m){return m.userData.placeIdx!==undefined;}));
+    if(hits.length) showPanel(placesData[hits[0].object.userData.placeIdx]);
+  });
+
+  var dragging=false,prev={x:0,y:0},vel={x:0,y:0};
+  canvas.addEventListener('mousedown',function(e){dragging=true;didDrag=false;prev={x:e.clientX,y:e.clientY};vel={x:0,y:0};});
+  canvas.addEventListener('mousemove',function(e){if(!dragging)return;didDrag=true;vel.y=(e.clientX-prev.x)*0.005;vel.x=(e.clientY-prev.y)*0.005;prev={x:e.clientX,y:e.clientY};});
+  canvas.addEventListener('mouseup',function(){dragging=false;});
+  canvas.addEventListener('mouseleave',function(){dragging=false;});
+  canvas.addEventListener('touchstart',function(e){dragging=true;didDrag=false;prev={x:e.touches[0].clientX,y:e.touches[0].clientY};},{passive:true});
+  canvas.addEventListener('touchmove',function(e){e.preventDefault();didDrag=true;vel.y=(e.touches[0].clientX-prev.x)*0.005;vel.x=(e.touches[0].clientY-prev.y)*0.005;prev={x:e.touches[0].clientX,y:e.touches[0].clientY};},{passive:false});
+  canvas.addEventListener('touchend',function(){dragging=false;});
+
+  (function animate(){
+    requestAnimationFrame(animate);
+    if(!dragging){vel.x*=0.90;vel.y*=0.90;if(Math.abs(vel.x)<0.0002&&Math.abs(vel.y)<0.0002)vel.y=0.0015;}
+    earth.rotation.x+=vel.x; earth.rotation.y+=vel.y;
+    var t=Date.now()*0.003;
+    markers.forEach(function(m){if(m.userData.pulse)m.scale.setScalar(1+0.2*Math.sin(t));});
+    renderer.render(scene,camera);
+  })();
+
+  window.addEventListener('resize',function(){
+    W=wrap.clientWidth;H=wrap.clientHeight;
+    camera.aspect=W/H;camera.updateProjectionMatrix();renderer.setSize(W,H);
+  });
+  return {plotPlaces:plotPlaces};
+}
+
+// High quality fallback Earth texture using real geographic coordinates
+function buildFallbackTexture(){
+  var W=4096,H=2048;
+  var cv=document.createElement('canvas'); cv.width=W; cv.height=H;
+  var g=cv.getContext('2d');
+
+  // Ocean
+  var og=g.createLinearGradient(0,0,0,H);
+  og.addColorStop(0,'#061828'); og.addColorStop(0.5,'#0c2d4e'); og.addColorStop(1,'#071020');
+  g.fillStyle=og; g.fillRect(0,0,W,H);
+
+  function pt(lat,lng){return[(lng+180)/360*W,(90-lat)/180*H];}
+  function poly(coords,color){
+    g.fillStyle=color||'#3a6b30';
+    g.beginPath();
+    var p=pt(coords[0][0],coords[0][1]); g.moveTo(p[0],p[1]);
+    for(var i=1;i<coords.length;i++){p=pt(coords[i][0],coords[i][1]);g.lineTo(p[0],p[1]);}
+    g.closePath(); g.fill();
+  }
+
+  // North America
+  poly([[71,-141],[73,-100],[68,-83],[55,-57],[47,-53],[44,-66],[35,-75],[25,-80],
+        [15,-85],[10,-83],[8,-77],[16,-92],[20,-90],[22,-106],[30,-110],[32,-117],
+        [38,-122],[48,-124],[54,-130],[60,-140],[65,-168],[71,-156],[73,-141]]);
+  // Alaska
+  poly([[55,-130],[58,-137],[60,-147],[62,-150],[60,-166],[63,-168],[66,-164],[60,-162],[55,-130]]);
+  // Greenland
+  poly([[83,-45],[82,-18],[76,-18],[68,-27],[65,-40],[67,-52],[72,-52],[78,-66],[83,-45]]);
+  // Cuba
+  poly([[23,-82],[22,-79],[20,-74],[22,-74],[23,-82]]);
+  // South America
+  poly([[12,-72],[10,-62],[5,-52],[0,-50],[-5,-35],[-10,-37],[-15,-39],[-22,-43],
+        [-33,-52],[-38,-57],[- 42,-63],[-52,-70],[-55,-65],[-45,-65],[-30,-70],
+        [-18,-70],[-10,-78],[0,-80],[5,-77],[10,-72],[12,-72]]);
+  // Europe
+  poly([[36,-9],[38,-9],[44,-8],[46,-2],[48,2],[52,5],[54,8],[55,10],[60,5],[62,6],
+        [64,14],[68,14],[70,28],[65,24],[60,24],[56,20],[52,18],[50,14],[46,14],
+        [44,12],[38,15],[36,14],[35,12],[37,10],[36,5],[36,-2],[36,-9]]);
+  // Scandinavia
+  poly([[58,5],[60,5],[62,6],[64,14],[68,14],[70,28],[74,20],[70,16],[65,14],[62,14],[58,10],[58,5]]);
+  // UK
+  poly([[50,-5],[54,-3],[58,-5],[58,-3],[54,0],[51,2],[50,2],[50,-5]]);
+  // Ireland
+  poly([[51,-10],[53,-10],[55,-8],[53,-6],[51,-8],[51,-10]]);
+  // Iceland
+  poly([[64,-24],[66,-22],[65,-18],[63,-14],[63,-20],[64,-24]]);
+  // Africa
+  poly([[37,10],[33,12],[30,32],[22,36],[12,44],[8,38],[4,38],[0,42],[-5,38],
+        [-15,35],[-25,33],[-34,20],[-32,18],[-20,12],[-10,14],[-5,10],[4,2],
+        [4,8],[8,2],[8,-5],[4,-12],[8,-15],[15,-17],[20,-17],[24,-15],[28,-13],
+        [35,-6],[37,10]]);
+  // Madagascar
+  poly([[-12,44],[-14,48],[-20,48],[-25,44],[-18,44],[-12,44]]);
+  // Arabian Peninsula
+  poly([[30,32],[22,36],[12,44],[10,42],[12,50],[18,56],[22,60],[28,56],[30,48],[32,40],[30,32]]);
+  // Turkey
+  poly([[36,26],[42,26],[42,36],[38,44],[36,38],[36,26]]);
+  // INDIA - accurate shape
+  poly([[8,77],[8,78],[10,80],[14,80],[18,84],[20,86],[22,88],[24,90],[26,92],
+        [28,84],[30,78],[32,74],[34,74],[36,72],[34,68],[30,66],[28,64],[24,68],
+        [20,72],[16,74],[12,76],[8,77]]);
+  // Sri Lanka
+  poly([[10,80],[8,80],[6,82],[8,82],[10,80]]);
+  // Pakistan/Bangladesh
+  poly([[24,68],[28,64],[32,66],[34,72],[32,74],[30,72],[28,64]]);
+  // China/East Asia main
+  poly([[22,100],[24,100],[28,98],[32,96],[36,90],[42,84],[48,86],[52,86],
+        [54,90],[52,140],[46,134],[40,128],[36,122],[32,120],[24,116],[20,110],[22,100]]);
+  // Southeast Asia
+  poly([[28,98],[22,100],[18,100],[10,100],[4,104],[0,104],[4,108],[10,106],
+        [14,108],[18,106],[22,100],[24,100],[28,98]]);
+  // Korea
+  poly([[38,126],[34,126],[34,128],[36,130],[38,130],[40,128],[38,126]]);
+  // Japan
+  poly([[32,130],[36,136],[40,140],[44,144],[42,142],[38,140],[34,134],[32,130]]);
+  // Hokkaido
+  poly([[42,140],[44,142],[44,145],[42,144],[42,140]]);
+  // Central Asia/Russia
+  poly([[50,30],[60,40],[68,60],[68,80],[70,90],[70,130],[64,142],[56,140],
+        [50,128],[52,120],[54,90],[52,72],[48,60],[44,42],[50,36],[50,30]]);
+  // Australia
+  poly([[-14,128],[-12,130],[-14,136],[-16,136],[-18,140],[-22,150],[- 28,154],
+        [-34,152],[-38,140],[-36,136],[-32,134],[-28,116],[-22,114],[-14,128]]);
+  // New Zealand North
+  poly([[-36,174],[-38,176],[-41,175],[-37,175],[-36,174]]);
+  // New Zealand South
+  poly([[-40,172],[-46,168],[-44,170],[-42,172],[-40,172]]);
+  // Antarctica
+  g.fillStyle='#c8dde8';
+  g.fillRect(0,H*0.90,W,H*0.10);
+  // Arctic ice
+  g.fillStyle='rgba(200,225,240,0.85)';
+  g.fillRect(0,0,W,H*0.055);
+  // Grid
+  g.strokeStyle='rgba(255,255,255,0.035)'; g.lineWidth=0.8;
+  for(var lat=-60;lat<=60;lat+=30){var y=(90-lat)/180*H;g.beginPath();g.moveTo(0,y);g.lineTo(W,y);g.stroke();}
+  for(var lng=-150;lng<=150;lng+=30){var x=(lng+180)/360*W;g.beginPath();g.moveTo(x,0);g.lineTo(x,H);g.stroke();}
+  return new THREE.CanvasTexture(cv);
+}
+
+function showPanel(p){
+  if(!p) return;
+  document.getElementById('ppName').textContent=p.name||'';
+  document.getElementById('ppDesc').textContent=p.description||'';
+  var imgs=document.getElementById('ppImgs'); imgs.innerHTML='';
+  (p.images||[]).forEach(function(u){var img=document.createElement('img');img.src=u;img.onclick=function(){openLB(u);};imgs.appendChild(img);});
+  document.getElementById('placePanel').classList.add('visible');
+}
+
+document.addEventListener('DOMContentLoaded', function(){
+  initPage();
+  var globe=initGlobe();
+  getSiteData('travels').then(function(d){
+    placesData=(d&&d.list)?d.list:[];
+    globe.plotPlaces(placesData);
+    var list=document.getElementById('placesList');
+    if(placesData.length){
+      list.innerHTML=placesData.map(function(p,i){
+        return '<button class="place-chip" onclick="showPanel(placesData['+i+'])">'+p.name+'</button>';
+      }).join('');
+    } else {
+      list.innerHTML='<span style="font-family:var(--font-mono);font-size:.65rem;color:var(--muted);letter-spacing:2px;text-transform:uppercase">Add places via Admin Panel → Travels tab</span>';
+    }
+    reObserve();
+  });
+});
+</script>
+</body>
+</html>
