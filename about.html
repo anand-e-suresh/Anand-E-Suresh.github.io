@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>About — Anand E Suresh</title>
+<link rel="stylesheet" href="style.css"/>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script src="app.js"></script>
+<style>
+.about-grid{display:grid;grid-template-columns:1fr 1.5fr;gap:80px;align-items:start}
+@media(max-width:800px){.about-grid{grid-template-columns:1fr;gap:40px}}
+.portrait-frame{width:100%;aspect-ratio:3/4;background:var(--bg3);border:1px solid var(--border);border-radius:4px;overflow:hidden;display:flex;align-items:center;justify-content:center}
+.portrait-frame img{width:100%;height:100%;object-fit:cover;display:block}
+.portrait-ph{display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--muted);font-family:var(--font-mono);font-size:.7rem;letter-spacing:2px;gap:12px;opacity:.5;padding:20px;text-align:center}
+.tag-list{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}
+.tag{font-family:var(--font-mono);font-size:.65rem;padding:5px 12px;background:var(--bg3);border:1px solid var(--border);color:var(--muted);letter-spacing:1px}
+.about-body p{font-size:1rem;line-height:1.85;color:var(--text);margin-bottom:20px;font-weight:300}
+.about-body em{color:var(--accent);font-style:normal;font-weight:600}
+.traits-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:32px}
+@media(max-width:480px){.traits-grid{grid-template-columns:1fr}}
+.trait-card{background:var(--bg3);border:1px solid var(--border);border-radius:4px;padding:20px;transition:border-color .3s}
+.trait-card:hover{border-color:var(--border2)}
+.trait-title{font-size:.9rem;font-weight:600;color:var(--white);margin-bottom:6px}
+.trait-desc{font-size:.8rem;color:var(--muted);line-height:1.6}
+</style>
+</head>
+<body>
+<div id="navMount"></div>
+<div class="page">
+  <section class="section" style="padding-top:80px">
+    <div class="section-eyebrow fade-in">// Who I Am</div>
+    <h1 class="section-title fade-in">About Me</h1>
+    <div class="about-grid">
+      <div class="fade-in" style="position:sticky;top:calc(var(--nav-h) + 30px)">
+        <div class="portrait-frame" id="portraitWrap">
+          <div class="portrait-ph" id="portraitPh">
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+            <span>Profile photo</span>
+          </div>
+        </div>
+        <div class="tag-list" id="tagList">
+          <span class="tag">B.Tech · Plaksha '28</span>
+          <span class="tag">Explorer</span>
+          <span class="tag">Ex-Scout</span>
+          <span class="tag">Curious</span>
+        </div>
+      </div>
+      <div class="about-body fade-in">
+        <p id="ap1">I am a <em>curious and analytical learner</em> who enjoys solving problems through structured thinking and clarity. I am constantly working on strengthening my technical and logical foundation.</p>
+        <p id="ap2">Outside academics, I prefer being a <em>traveller rather than a tourist</em> — exploring places with depth, understanding cultures, and learning from real-world experiences.</p>
+        <p id="ap3">I believe growth, whether in technology or life, comes from <em>curiosity, exploration, and continuous learning.</em></p>
+        <div class="traits-grid" id="traitsGrid">
+          <div class="trait-card fade-in"><div class="trait-title">Analytical Thinking</div><div class="trait-desc">Structure, clarity, first-principles reasoning.</div></div>
+          <div class="trait-card fade-in"><div class="trait-title">Traveller's Mindset</div><div class="trait-desc">Exploring cultures and ideas with depth.</div></div>
+          <div class="trait-card fade-in"><div class="trait-title">Community Spirit</div><div class="trait-desc">Blood donation, hair donation — giving back.</div></div>
+          <div class="trait-card fade-in"><div class="trait-title">Continuous Growth</div><div class="trait-desc">Every experience is a chance to learn.</div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+<div id="_toast" class="toast"></div>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  initPage();
+  getSiteData('about').then(function(d) {
+    if (!d) return;
+
+    // Photo
+    if (d.photo) {
+      document.getElementById('portraitWrap').innerHTML =
+        '<img src="'+d.photo+'" alt="Anand" style="width:100%;height:100%;object-fit:cover;display:block"/>';
+    }
+
+    // Bio paragraphs
+    if (d.para1) document.getElementById('ap1').innerHTML = d.para1;
+    if (d.para2) document.getElementById('ap2').innerHTML = d.para2;
+    if (d.para3) document.getElementById('ap3').innerHTML = d.para3;
+
+    // Tags
+    if (d.tags && d.tags.length) {
+      document.getElementById('tagList').innerHTML = d.tags.map(function(t) {
+        return '<span class="tag">'+t+'</span>';
+      }).join('');
+    }
+
+    // Trait cards
+    if (d.traits && d.traits.length) {
+      document.getElementById('traitsGrid').innerHTML = d.traits.map(function(t) {
+        return '<div class="trait-card fade-in"><div class="trait-title">'+t.title+'</div><div class="trait-desc">'+t.desc+'</div></div>';
+      }).join('');
+    }
+
+    reObserve();
+  });
+});
+</script>
+</body>
+</html>
