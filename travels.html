@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Travels — Anand E Suresh</title>
+<link rel="stylesheet" href="style.css"/>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script src="app.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+</head>
+<body>
+<div id="navMount"></div>
+<div class="page">
+  <section class="section">
+    <span class="section-eyebrow">// Travels</span>
+    <h1 class="section-title fade-in">Places<br/><strong>I've Been</strong></h1>
+    <div id="globe-wrap">
+      <canvas id="globe-canvas"></canvas>
+      <div class="globe-hint">Drag to rotate &middot; Click markers to explore</div>
+      <div class="place-panel" id="placePanel">
+        <button class="place-panel-close" id="placePanelClose">&#10005;</button>
+        <div class="place-panel-name" id="ppName"></div>
+        <div class="place-panel-desc" id="ppDesc"></div>
+        <div class="place-panel-imgs" id="ppImgs"></div>
+      </div>
+    </div>
+    <div class="places-list fade-in" id="placesList"></div>
+  </section>
+</div>
+<div id="lightbox"><button id="lightbox-close">&#10005;</button><img id="lightbox-img" src="" alt=""/></div>
+<div id="_toast" class="toast"></div>
+<script>
+var placesData = [];
+
+function openLB(src) { document.getElementById('lightbox-img').src=src; document.getElementById('lightbox').classList.add('open'); }
+document.getElementById('lightbox-close').onclick = function() { document.getElementById('lightbox').classList.remove('open'); };
+document.getElementById('lightbox').onclick = function(e) { if(e.target===document.getElementById('lightbox')) document.getElementById('lightbox').classList.remove('open'); };
+document.getElementById('placePanelClose').onclick = function() { document.getElementById('placePanel').classList.remove('visible'); };
+
+function initGlobe() {
+  var canvas  = document.getElementById('globe-canvas');
+  var wrap    = document.getElementById('globe-wrap');
+  var W = wrap.clientWidth, H = wrap.clientHeight;
+
+  var renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true, alpha: true });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
+  renderer.setSize(W, H);
+
+  var scene  = new THREE.Scene();
+  var camera = new THREE.PerspectiveCamera(45, W/H, 0.1, 100);
+  camera.position.z = 2.8;
+
+  // ── Real Earth using texture from a public CDN ──
+  // Draw Earth programmatically — no external URLs, always works
+  function makeEarthTexture() {
+    var c2 = document.createElement('canvas'); c2.width = 1024; c2.height = 512;
+    var ctx = c2.getContext('2d');
+
+    // Ocean gradient
+    var grad = ctx.createLinearGradient(0,0,0,512);
+    grad.addColorStop(0,   '#0a1628');
+    grad.addColorStop(0.5, '#0d2240');
+    grad.addColorStop(1,   '#081830');
+    ctx.fillStyle = grad; ctx.fillRect(0,0,1024,512);
+
+    // Add noise to ocean
+    for(var i=0;i<6000;i++){
+      ctx.fillStyle='rgba(30,80,140,'+(Math.random()*0.06)+')';
+      var x=Math.random()*1024,y=Math.random()*512,r=Math.random()*12+2;
+      ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.fill();
+    }
+
+    ctx.fillStyle = '#1a3d22';
+    // North America
+    ctx.beginPath();
+    ctx.moveTo(130,80); ctx.lineTo(200,65); ctx.lineTo(240,75);
+    ctx.lineTo(260,95); ctx.lineTo(255,120); ctx.lineTo(230,145);
+    ctx.lineTo(210,160); ctx.lineTo(195,175); ctx.lineTo(185,200);
+    ctx.lineTo(170,210); ctx.lineTo(155,195); ctx.lineTo(140,170);
+    ctx.lineTo(125,145); ctx.lineTo(115,120); ctx.lineTo(110,95);
+    ctx.closePath(); ctx.fill();
+    // Central America
+    ctx.beginPath();
+    ctx.moveTo(185,200); ctx.lineTo(195,210); ctx.lineTo(185,230);
+    ctx.lineTo(175,225); ctx.lineTo(178,210); ctx.closePath(); ctx.fill();
+    // South America
+    ctx.beginPath();
+    ctx.moveTo(185,235); ctx.lineTo(210,228); ctx.lineTo(225,240);
+    ctx.lineTo(230,270); ctx.lineTo(220,310); ctx.lineTo(205,345);
+    ctx.lineTo(195,370); ctx.lineTo(185,385); ctx.lineTo(175,365);
+    ctx.lineTo(170,340); ctx.lineTo(175,305); ctx.lineTo(178,270);
+    ctx.lineTo(175,245); ctx.closePath(); ctx.fill();
+    // Europe
+    ctx.beginPath();
+    ctx.moveTo(460,75); ctx.lineTo(490,70); ctx.lineTo(510,78);
+    ctx.lineTo(515,95); ctx.lineTo(505,110); ctx.lineTo(490,115);
+    ctx.lineTo(470,108); ctx.lineTo(455,95); ctx.closePath(); ctx.fill();
+    // Scandinavia
+    ctx.beginPath();
+    ctx.moveTo(475,50); ctx.lineTo(490,45); ctx.lineTo(500,58);
+    ctx.lineTo(492,70); ctx.lineTo(478,68); ctx.closePath(); ctx.fill();
+    // Africa
+    ctx.beginPath();
+    ctx.moveTo(460,130); ctx.lineTo(490,120); ctx.lineTo(520,128);
+    ctx.lineTo(535,155); ctx.lineTo(535,200); ctx.lineTo(525,240);
+    ctx.lineTo(510,280); ctx.lineTo(500,310); ctx.lineTo(490,330);
+    ctx.lineTo(480,325); ctx.lineTo(470,300); ctx.lineTo(460,270);
+    ctx.lineTo(455,230); ctx.lineTo(450,185); ctx.lineTo(448,150);
+    ctx.closePath(); ctx.fill();
+    // Asia (main body)
+    ctx.beginPath();
+    ctx.moveTo(510,65); ctx.lineTo(580,55); ctx.lineTo(650,60);
+    ctx.lineTo(710,70); ctx.lineTo(750,80); ctx.lineTo(770,100);
+    ctx.lineTo(760,125); ctx.lineTo(730,140); ctx.lineTo(700,150);
+    ctx.lineTo(670,160); ctx.lineTo(640,155); ctx.lineTo(610,165);
+    ctx.lineTo(590,180); ctx.lineTo(570,175); ctx.lineTo(550,155);
+    ctx.lineTo(530,140); ctx.lineTo(515,120); ctx.lineTo(508,100);
+    ctx.closePath(); ctx.fill();
+    // India
+    ctx.beginPath();
+    ctx.moveTo(600,165); ctx.lineTo(625,160); ctx.lineTo(635,178);
+    ctx.lineTo(628,205); ctx.lineTo(615,220); ctx.lineTo(600,210);
+    ctx.lineTo(592,190); ctx.closePath(); ctx.fill();
+    // Southeast Asia
+    ctx.beginPath();
+    ctx.moveTo(670,155); ctx.lineTo(700,150); ctx.lineTo(720,165);
+    ctx.lineTo(710,185); ctx.lineTo(690,190); ctx.lineTo(675,178);
+    ctx.closePath(); ctx.fill();
+    // Australia
+    ctx.beginPath();
+    ctx.moveTo(700,270); ctx.lineTo(745,260); ctx.lineTo(775,268);
+    ctx.lineTo(790,285); ctx.lineTo(785,310); ctx.lineTo(765,330);
+    ctx.lineTo(740,338); ctx.lineTo(715,330); ctx.lineTo(700,310);
+    ctx.lineTo(695,290); ctx.closePath(); ctx.fill();
+    // Greenland
+    ctx.beginPath();
+    ctx.moveTo(310,40); ctx.lineTo(345,32); ctx.lineTo(370,40);
+    ctx.lineTo(365,62); ctx.lineTo(340,70); ctx.lineTo(315,62);
+    ctx.closePath(); ctx.fill();
+    // UK/Ireland
+    ctx.beginPath();
+    ctx.moveTo(448,82); ctx.lineTo(458,78); ctx.lineTo(462,90);
+    ctx.lineTo(452,96); ctx.lineTo(444,90); ctx.closePath(); ctx.fill();
+    // Japan
+    ctx.beginPath();
+    ctx.moveTo(740,105); ctx.lineTo(750,100); ctx.lineTo(758,112);
+    ctx.lineTo(748,120); ctx.lineTo(738,115); ctx.closePath(); ctx.fill();
+
+    // Ice caps
+    ctx.fillStyle = '#c8dde8';
+    ctx.fillRect(0,0,1024,30);
+    ctx.fillRect(0,490,1024,22);
+    // Slight glow on land
+    ctx.fillStyle = 'rgba(80,160,80,0.06)';
+    ctx.fillRect(0,0,1024,512);
+
+    return new THREE.CanvasTexture(c2);
+  }
+
+  var earthTex = makeEarthTexture();
+  var earthMat = new THREE.MeshPhongMaterial({
+    map: earthTex,
+    specular: new THREE.Color(0x1a2233),
+    shininess: 20
+  });
+
+  var earth = new THREE.Mesh(new THREE.SphereGeometry(1, 64, 64), earthMat);
+  scene.add(earth);
+
+  // Atmosphere glow
+  var atmMat = new THREE.MeshBasicMaterial({ color: 0x3ab8d4, opacity: 0.06, transparent: true, side: THREE.BackSide });
+  scene.add(new THREE.Mesh(new THREE.SphereGeometry(1.08, 32, 32), atmMat));
+
+  // Lights
+  scene.add(new THREE.AmbientLight(0xffffff, 0.35));
+  var sun = new THREE.DirectionalLight(0xfff5e0, 1.1);
+  sun.position.set(5, 3, 5); scene.add(sun);
+
+  // ── Convert lat/lng to 3D ──
+  function ll3d(lat, lng, r) {
+    r = r || 1.02;
+    var phi = (90 - lat) * Math.PI / 180;
+    var theta = (lng + 180) * Math.PI / 180;
+    return new THREE.Vector3(
+      -r * Math.sin(phi) * Math.cos(theta),
+       r * Math.cos(phi),
+       r * Math.sin(phi) * Math.sin(theta)
+    );
+  }
+
+  var dotMeshes = [];
+  function plotPlaces(places) {
+    dotMeshes.forEach(function(d) { earth.remove(d); });
+    dotMeshes = [];
+    places.forEach(function(p, i) {
+      if (!p.lat || !p.lng) return;
+      var dot = new THREE.Mesh(
+        new THREE.SphereGeometry(0.016, 8, 8),
+        new THREE.MeshBasicMaterial({ color: 0xc8e63c })
+      );
+      dot.position.copy(ll3d(p.lat, p.lng));
+      dot.userData = { idx: i };
+      earth.add(dot); dotMeshes.push(dot);
+
+      // ring
+      var ring = new THREE.Mesh(
+        new THREE.RingGeometry(0.02, 0.032, 16),
+        new THREE.MeshBasicMaterial({ color: 0xc8e63c, opacity: 0.35, transparent: true, side: THREE.DoubleSide })
+      );
+      ring.position.copy(ll3d(p.lat, p.lng));
+      ring.lookAt(new THREE.Vector3(0,0,0));
+      ring.userData = { pulse: true };
+      earth.add(ring); dotMeshes.push(ring);
+    });
+  }
+
+  // Click detection
+  var ray = new THREE.Raycaster(), mp = new THREE.Vector2();
+  canvas.addEventListener('click', function(e) {
+    if (dragged) return;
+    var rect = canvas.getBoundingClientRect();
+    mp.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+    mp.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+    ray.setFromCamera(mp, camera);
+    var hits = ray.intersectObjects(dotMeshes.filter(function(d) { return d.userData.idx !== undefined; }));
+    if (hits.length) {
+      var p = placesData[hits[0].object.userData.idx];
+      if (p) showPanel(p);
+    }
+  });
+
+  // Drag to rotate
+  var dragging = false, dragged = false, prev = {x:0,y:0}, vel = {x:0,y:0};
+  canvas.addEventListener('mousedown', function(e) { dragging=true; dragged=false; prev={x:e.clientX,y:e.clientY}; vel={x:0,y:0}; });
+  canvas.addEventListener('mousemove', function(e) {
+    if (!dragging) return;
+    dragged = true;
+    vel.y = (e.clientX - prev.x) * 0.005;
+    vel.x = (e.clientY - prev.y) * 0.005;
+    prev = {x:e.clientX,y:e.clientY};
+  });
+  canvas.addEventListener('mouseup',    function() { dragging = false; });
+  canvas.addEventListener('mouseleave', function() { dragging = false; });
+  canvas.addEventListener('touchstart', function(e) { dragging=true; dragged=false; prev={x:e.touches[0].clientX,y:e.touches[0].clientY}; vel={x:0,y:0}; });
+  canvas.addEventListener('touchmove',  function(e) { e.preventDefault(); dragged=true; vel.y=(e.touches[0].clientX-prev.x)*.005; vel.x=(e.touches[0].clientY-prev.y)*.005; prev={x:e.touches[0].clientX,y:e.touches[0].clientY}; }, {passive:false});
+  canvas.addEventListener('touchend',   function() { dragging=false; });
+
+  // Animate
+  var clock = new THREE.Clock();
+  function animate() {
+    requestAnimationFrame(animate);
+    var t = clock.getDelta();
+    if (!dragging) { vel.x *= 0.92; vel.y *= 0.92; }
+    if (Math.abs(vel.x) < 0.0001 && Math.abs(vel.y) < 0.0001 && !dragging) vel.y = 0.002;
+    earth.rotation.x += vel.x;
+    earth.rotation.y += vel.y;
+    // pulse rings
+    dotMeshes.forEach(function(d) {
+      if (d.userData.pulse) { var s = 1 + 0.15 * Math.sin(Date.now()*0.003); d.scale.setScalar(s); }
+    });
+    renderer.render(scene, camera);
+  }
+  animate();
+
+  window.addEventListener('resize', function() {
+    W = wrap.clientWidth; H = wrap.clientHeight;
+    camera.aspect = W/H; camera.updateProjectionMatrix();
+    renderer.setSize(W, H);
+  });
+
+  return { plotPlaces: plotPlaces };
+}
+
+function showPanel(p) {
+  var panel = document.getElementById('placePanel');
+  document.getElementById('ppName').textContent = p.name;
+  document.getElementById('ppDesc').textContent = p.description || '';
+  var imgs = document.getElementById('ppImgs');
+  imgs.innerHTML = '';
+  (p.images || []).forEach(function(u) {
+    var img = document.createElement('img');
+    img.src = u; img.onclick = function() { openLB(u); };
+    imgs.appendChild(img);
+  });
+  panel.classList.add('visible');
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+  initPage();
+  var globe = initGlobe();
+
+  getSiteData('travels').then(function(d) {
+    placesData = (d && d.list) ? d.list : [];
+    globe.plotPlaces(placesData);
+
+    var list = document.getElementById('placesList');
+    if (placesData.length) {
+      list.innerHTML = placesData.map(function(p, i) {
+        return '<button class="place-chip" onclick="showPanel(placesData['+i+'])">' + p.name + '</button>';
+      }).join('');
+    }
+  });
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,669 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Admin — AES Portfolio</title>
+<link rel="stylesheet" href="style.css"/>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script src="app.js"></script>
+</head>
+<body>
+
+<!-- ════ LOGIN SCREEN ════ -->
+<div id="loginScreen" class="admin-login">
+  <div class="admin-login-box">
+    <div style="font-family:'Bebas Neue',sans-serif;font-size:2.2rem;color:var(--accent);letter-spacing:3px;margin-bottom:4px">ADMIN PANEL</div>
+    <div style="font-family:'JetBrains Mono',monospace;font-size:.7rem;color:var(--muted);letter-spacing:2px;margin-bottom:36px">Anand E Suresh · Portfolio CMS</div>
+    <div style="display:flex;flex-direction:column;gap:16px">
+      <div>
+        <label class="admin-label">Username</label>
+        <input type="text" class="admin-input" id="loginUser" placeholder="Username" autocomplete="username"/>
+      </div>
+      <div>
+        <label class="admin-label">Password</label>
+        <input type="password" class="admin-input" id="loginPwd" placeholder="Password" autocomplete="current-password"/>
+      </div>
+      <div id="loginErr" style="color:var(--accent2);font-family:'JetBrains Mono',monospace;font-size:.78rem;display:none">Incorrect credentials</div>
+      <button class="admin-save-btn" onclick="doLogin()">Login →</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════ ADMIN PANEL ════ -->
+<div id="adminScreen" style="display:none">
+  <div id="navMount"></div>
+  <div class="admin-panel">
+
+    <div class="admin-header">
+      <div>
+        <div class="admin-title">ADMIN PANEL</div>
+        <div class="admin-subtitle">// Logged in as <span id="adminUserDisplay"></span></div>
+      </div>
+      <button class="logout-btn" onclick="doLogout()">Logout</button>
+    </div>
+
+    <div class="admin-tabs">
+      <button class="admin-tab active" onclick="switchTab(this,'about')">About</button>
+      <button class="admin-tab" onclick="switchTab(this,'skills')">Skills</button>
+      <button class="admin-tab" onclick="switchTab(this,'projects')">Projects</button>
+      <button class="admin-tab" onclick="switchTab(this,'experience')">Experience</button>
+      <button class="admin-tab" onclick="switchTab(this,'education')">Education</button>
+      <button class="admin-tab" onclick="switchTab(this,'travels')">Travels</button>
+      <button class="admin-tab" onclick="switchTab(this,'activities')">Activities</button>
+      <button class="admin-tab" onclick="switchTab(this,'volunteer')">Volunteer</button>
+      <button class="admin-tab" onclick="switchTab(this,'contact')">Contact</button>
+      <button class="admin-tab" onclick="switchTab(this,'security')"> Security</button>
+      <button class="admin-tab" onclick="switchTab(this,'messages')"> Messages</button>
+    </div>
+
+    <!-- ABOUT -->
+    <div class="admin-section active" id="tab-about">
+      <h2 style="color:var(--white);margin-bottom:24px;font-size:1.2rem">About Me</h2>
+      <div class="admin-form">
+        <div><label class="admin-label">Paragraph 1</label><textarea class="admin-textarea" id="ap1">I am a curious and analytical learner who enjoys solving problems through structured thinking and clarity. I am constantly working on strengthening my technical and logical foundation.</textarea></div>
+        <div><label class="admin-label">Paragraph 2</label><textarea class="admin-textarea" id="ap2">Outside academics, I prefer being a traveller rather than a tourist — exploring places with depth, understanding cultures, and learning from real-world experiences.</textarea></div>
+        <div><label class="admin-label">Paragraph 3</label><textarea class="admin-textarea" id="ap3">I believe growth, whether in technology or life, comes from curiosity, exploration, and continuous learning.</textarea></div>
+        <div>
+          <label class="admin-label">Profile Photo</label>
+          <div class="upload-area"><input type="file" accept="image/*" onchange="uploadSingle(this,'aboutPhotoURL','aboutPhotoPreview')"/><div class="upload-text">Upload profile photo</div><div class="progress-bar"><div class="progress-fill" id="aboutPhotoURLProg"></div></div></div>
+          <div id="aboutPhotoPreview" class="img-preview-grid"></div>
+          <input type="hidden" id="aboutPhotoURL"/>
+        </div>
+        <button class="admin-save-btn" onclick="saveAbout()">Save About →</button>
+      </div>
+    </div>
+
+    <!-- SKILLS -->
+    <div class="admin-section" id="tab-skills">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;flex-wrap:wrap;gap:12px">
+        <h2 style="color:var(--white);font-size:1.2rem">Skills</h2>
+        <button class="admin-save-btn" style="font-size:.72rem" onclick="openSkillModal()">+ Add Skill</button>
+      </div>
+      <div id="skillsList"><div style="color:var(--muted);font-size:.85rem">Loading...</div></div>
+    </div>
+
+    <!-- PROJECTS -->
+    <div class="admin-section" id="tab-projects">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;flex-wrap:wrap;gap:12px">
+        <h2 style="color:var(--white);font-size:1.2rem">Projects</h2>
+        <button class="admin-save-btn" style="font-size:.72rem" onclick="openProjectModal()">+ Add Project</button>
+      </div>
+      <div id="projectsList"><div style="color:var(--muted);font-size:.85rem">Loading...</div></div>
+    </div>
+
+    <!-- EXPERIENCE -->
+    <div class="admin-section" id="tab-experience">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;flex-wrap:wrap;gap:12px">
+        <h2 style="color:var(--white);font-size:1.2rem">Experience</h2>
+        <button class="admin-save-btn" style="font-size:.72rem" onclick="openExpModal()">+ Add Experience</button>
+      </div>
+      <div id="expList"><div style="color:var(--muted);font-size:.85rem">Loading...</div></div>
+    </div>
+
+    <!-- EDUCATION -->
+    <div class="admin-section" id="tab-education">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;flex-wrap:wrap;gap:12px">
+        <h2 style="color:var(--white);font-size:1.2rem">Education</h2>
+        <button class="admin-save-btn" style="font-size:.72rem" onclick="openEduModal()">+ Add Entry</button>
+      </div>
+      <div id="eduList"><div style="color:var(--muted);font-size:.85rem">Loading...</div></div>
+    </div>
+
+    <!-- TRAVELS -->
+    <div class="admin-section" id="tab-travels">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;flex-wrap:wrap;gap:12px">
+        <h2 style="color:var(--white);font-size:1.2rem">Travel Places</h2>
+        <button class="admin-save-btn" style="font-size:.72rem" onclick="openTravelModal()">+ Add Place</button>
+      </div>
+      <p style="color:var(--muted);font-size:.82rem;margin-bottom:20px">You can find lat/lng by right-clicking any location on Google Maps.</p>
+      <div id="travelsList"><div style="color:var(--muted);font-size:.85rem">Loading...</div></div>
+    </div>
+
+    <!-- ACTIVITIES -->
+    <div class="admin-section" id="tab-activities">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;flex-wrap:wrap;gap:12px">
+        <h2 style="color:var(--white);font-size:1.2rem">Activities</h2>
+        <button class="admin-save-btn" style="font-size:.72rem" onclick="openActModal()">+ Add Activity</button>
+      </div>
+      <div id="activitiesList"><div style="color:var(--muted);font-size:.85rem">Loading...</div></div>
+    </div>
+
+    <!-- VOLUNTEER -->
+    <div class="admin-section" id="tab-volunteer">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;flex-wrap:wrap;gap:12px">
+        <h2 style="color:var(--white);font-size:1.2rem">Volunteer Work</h2>
+        <button class="admin-save-btn" style="font-size:.72rem" onclick="openVolModal()">+ Add Entry</button>
+      </div>
+      <div id="volunteerList"><div style="color:var(--muted);font-size:.85rem">Loading...</div></div>
+    </div>
+
+    <!-- CONTACT -->
+    <div class="admin-section" id="tab-contact">
+      <h2 style="color:var(--white);margin-bottom:24px;font-size:1.2rem">Contact Info</h2>
+      <div class="admin-form">
+        <div><label class="admin-label">Email</label><input class="admin-input" id="cEmail" value="anandesuresh0306@gmail.com"/></div>
+        <div><label class="admin-label">Instagram URL</label><input class="admin-input" id="cInsta" value="https://www.instagram.com/_.__anand._._/"/></div>
+        <div><label class="admin-label">LinkedIn URL</label><input class="admin-input" id="cLinkedin" placeholder="https://linkedin.com/in/..."/></div>
+        <div><label class="admin-label">GitHub URL</label><input class="admin-input" id="cGithub" placeholder="https://github.com/..."/></div>
+        <button class="admin-save-btn" onclick="saveContact()">Save Contact →</button>
+      </div>
+    </div>
+
+    <!-- SECURITY (Change Password) -->
+    <div class="admin-section" id="tab-security">
+      <h2 style="color:var(--white);margin-bottom:8px;font-size:1.2rem"> Security Settings</h2>
+      <p style="color:var(--muted);font-size:.88rem;margin-bottom:32px;line-height:1.6">You can change your admin username and password here at any time. Credentials are stored securely in Firebase (Firestore).</p>
+      <div class="admin-form">
+        <div>
+          <label class="admin-label">Current Password (to confirm)</label>
+          <input type="password" class="admin-input" id="secCurrent" placeholder="Enter current password"/>
+        </div>
+        <div>
+          <label class="admin-label">New Username</label>
+          <input type="text" class="admin-input" id="secUser" placeholder="New username"/>
+        </div>
+        <div>
+          <label class="admin-label">New Password</label>
+          <input type="password" class="admin-input" id="secNew" placeholder="New password (min 6 chars)"/>
+        </div>
+        <div>
+          <label class="admin-label">Confirm New Password</label>
+          <input type="password" class="admin-input" id="secConfirm" placeholder="Re-enter new password"/>
+        </div>
+        <div id="secErr" style="color:var(--accent2);font-family:'JetBrains Mono',monospace;font-size:.78rem;display:none"></div>
+        <button class="admin-save-btn" onclick="changeCredentials()">Update Credentials →</button>
+      </div>
+      <div style="margin-top:48px;padding:20px;background:var(--bg3);border:1px solid var(--border);border-radius:10px;max-width:700px">
+        <div style="font-family:'JetBrains Mono',monospace;font-size:.72rem;color:var(--accent);letter-spacing:2px;margin-bottom:8px">ℹ️ HOW IT WORKS</div>
+        <p style="font-size:.85rem;color:var(--muted);line-height:1.6">Your credentials are stored in Firebase Firestore. When you log in, your username and password are checked against the database. If you forget your password, you can reset it directly in the Firebase Console → Firestore → collection: <code style="color:var(--accent3)">adminAuth</code> → document: <code style="color:var(--accent3)">credentials</code>.</p>
+      </div>
+    </div>
+
+    <!-- MESSAGES -->
+    <div class="admin-section" id="tab-messages">
+      <h2 style="color:var(--white);margin-bottom:24px;font-size:1.2rem"> Inbox</h2>
+      <div id="messagesList"><div style="color:var(--muted);font-size:.85rem">Click the Messages tab to load...</div></div>
+    </div>
+
+  </div><!-- end admin-panel -->
+</div><!-- end adminScreen -->
+
+<!-- ════ MODALS ════ -->
+
+<!-- Skill Modal -->
+<div class="modal-overlay" id="skillModal">
+  <div class="modal-box">
+    <div class="modal-title">SKILL</div>
+    <input type="hidden" id="sIdx" value="-1"/>
+    <div class="admin-form">
+      <div><label class="admin-label">Name</label><input class="admin-input" id="sName" placeholder="Python"/></div>
+      <div><label class="admin-label">Category</label><select class="admin-select" id="sCat"><option value="languages">Programming Language</option><option value="libraries">Library / Tool</option><option value="other">Other</option></select></div>
+      <div><label class="admin-label">Icon (emoji)</label><input class="admin-input" id="sIcon" placeholder="" maxlength="4"/></div>
+      <div><label class="admin-label">Description</label><input class="admin-input" id="sDesc" placeholder="Data, scripting & automation"/></div>
+      <div><label class="admin-label">Level</label><select class="admin-select" id="sLevel"><option>Learning</option><option>Familiar</option><option>Comfortable</option><option>Proficient</option><option>Expert</option></select></div>
+      <div><label class="admin-label">Progress % (0–100)</label><input class="admin-input" type="number" id="sPct" min="0" max="100" value="50"/></div>
+      <div class="modal-btns"><button class="admin-save-btn" onclick="saveSkill()">Save →</button><button class="admin-danger-btn" onclick="closeModal('skillModal')">Cancel</button></div>
+    </div>
+  </div>
+</div>
+
+<!-- Project Modal -->
+<div class="modal-overlay" id="projectModal">
+  <div class="modal-box">
+    <div class="modal-title">PROJECT</div>
+    <input type="hidden" id="pIdx" value="-1"/>
+    <div class="admin-form">
+      <div><label class="admin-label">Title</label><input class="admin-input" id="pTitle"/></div>
+      <div><label class="admin-label">Description</label><textarea class="admin-textarea" id="pDesc"></textarea></div>
+      <div><label class="admin-label">Tags (comma separated)</label><input class="admin-input" id="pTags" placeholder="Python, ML, Data"/></div>
+      <div><label class="admin-label">Link (GitHub / Live)</label><input class="admin-input" id="pLink" placeholder="https://..."/></div>
+      <div>
+        <label class="admin-label">Cover Image</label>
+        <div class="upload-area"><input type="file" accept="image/*" onchange="uploadSingle(this,'pImgURL','pImgPreview')"/><div class="upload-text">Upload cover image</div><div class="progress-bar"><div class="progress-fill" id="pImgURLProg"></div></div></div>
+        <div id="pImgPreview" class="img-preview-grid"></div>
+        <input type="hidden" id="pImgURL"/>
+      </div>
+      <div class="modal-btns"><button class="admin-save-btn" onclick="saveProject()">Save →</button><button class="admin-danger-btn" onclick="closeModal('projectModal')">Cancel</button></div>
+    </div>
+  </div>
+</div>
+
+<!-- Experience Modal -->
+<div class="modal-overlay" id="expModal">
+  <div class="modal-box">
+    <div class="modal-title">EXPERIENCE</div>
+    <input type="hidden" id="eIdx" value="-1"/>
+    <div class="admin-form">
+      <div><label class="admin-label">Role / Position</label><input class="admin-input" id="eRole"/></div>
+      <div><label class="admin-label">Company / Organisation</label><input class="admin-input" id="eCompany"/></div>
+      <div><label class="admin-label">Type</label><select class="admin-select" id="eType"><option>Internship</option><option>Part-time</option><option>Full-time</option><option>Volunteer</option><option>Research</option></select></div>
+      <div><label class="admin-label">Period (e.g. Jun 2024 — Aug 2024)</label><input class="admin-input" id="ePeriod"/></div>
+      <div><label class="admin-label">Description</label><textarea class="admin-textarea" id="eDesc"></textarea></div>
+      <div><label class="admin-label">Tags (comma separated)</label><input class="admin-input" id="eTags"/></div>
+      <div class="modal-btns"><button class="admin-save-btn" onclick="saveExp()">Save →</button><button class="admin-danger-btn" onclick="closeModal('expModal')">Cancel</button></div>
+    </div>
+  </div>
+</div>
+
+<!-- Education Modal -->
+<div class="modal-overlay" id="eduModal">
+  <div class="modal-box">
+    <div class="modal-title">EDUCATION</div>
+    <input type="hidden" id="edIdx" value="-1"/>
+    <div class="admin-form">
+      <div><label class="admin-label">Institution Name</label><input class="admin-input" id="edName"/></div>
+      <div><label class="admin-label">Degree / Level</label><input class="admin-input" id="edDeg"/></div>
+      <div><label class="admin-label">Period (e.g. 2024 — Present)</label><input class="admin-input" id="edPeriod"/></div>
+      <div><label class="admin-label">Location</label><input class="admin-input" id="edLoc"/></div>
+      <div><label class="admin-label">Google Maps Link (optional)</label><input class="admin-input" id="edMap" placeholder="https://maps.app.goo.gl/..."/></div>
+      <div class="modal-btns"><button class="admin-save-btn" onclick="saveEdu()">Save →</button><button class="admin-danger-btn" onclick="closeModal('eduModal')">Cancel</button></div>
+    </div>
+  </div>
+</div>
+
+<!-- Travel Modal -->
+<div class="modal-overlay" id="travelModal">
+  <div class="modal-box">
+    <div class="modal-title">TRAVEL PLACE</div>
+    <input type="hidden" id="tIdx" value="-1"/>
+    <div class="admin-form">
+      <div><label class="admin-label">Place Name</label><input class="admin-input" id="tName" placeholder="Kasol"/></div>
+      <div><label class="admin-label">Latitude (find on Google Maps → right-click)</label><input class="admin-input" type="number" step="any" id="tLat" placeholder="32.0102"/></div>
+      <div><label class="admin-label">Longitude</label><input class="admin-input" type="number" step="any" id="tLng" placeholder="77.3148"/></div>
+      <div><label class="admin-label">Description</label><textarea class="admin-textarea" id="tDesc" placeholder="What makes this place special..."></textarea></div>
+      <div>
+        <label class="admin-label">Photos (multiple allowed)</label>
+        <div class="upload-area"><input type="file" accept="image/*" multiple onchange="uploadMulti(this,'tImgURLs','tImgPreview')"/><div class="upload-text">Upload travel photos</div><div class="progress-bar"><div class="progress-fill" id="tImgURLsProg"></div></div></div>
+        <div id="tImgPreview" class="img-preview-grid"></div>
+        <input type="hidden" id="tImgURLs" value="[]"/>
+      </div>
+      <div class="modal-btns"><button class="admin-save-btn" onclick="saveTravel()">Save →</button><button class="admin-danger-btn" onclick="closeModal('travelModal')">Cancel</button></div>
+    </div>
+  </div>
+</div>
+
+<!-- Activity Modal -->
+<div class="modal-overlay" id="actModal">
+  <div class="modal-box">
+    <div class="modal-title">ACTIVITY</div>
+    <input type="hidden" id="aIdx" value="-1"/>
+    <div class="admin-form">
+      <div><label class="admin-label">Title</label><input class="admin-input" id="aTitle" placeholder="Blood Donation Drive"/></div>
+      <div><label class="admin-label">Category</label><input class="admin-input" id="aCat" placeholder="Scout / Community"/></div>
+      <div><label class="admin-label">Date</label><input class="admin-input" id="aDate" placeholder="March 2023"/></div>
+      <div><label class="admin-label">Description</label><textarea class="admin-textarea" id="aDesc"></textarea></div>
+      <div><label class="admin-label">Text Alignment</label><select class="admin-select" id="aAlign"><option value="left">Left</option><option value="center">Center</option><option value="right">Right</option></select></div>
+      <div>
+        <label class="admin-label">Cover Image</label>
+        <div class="upload-area"><input type="file" accept="image/*" onchange="uploadSingle(this,'aCoverURL','aCoverPreview')"/><div class="upload-text">Cover image</div><div class="progress-bar"><div class="progress-fill" id="aCoverURLProg"></div></div></div>
+        <div id="aCoverPreview" class="img-preview-grid"></div>
+        <input type="hidden" id="aCoverURL"/>
+      </div>
+      <div>
+        <label class="admin-label">Additional Photos</label>
+        <div class="upload-area"><input type="file" accept="image/*" multiple onchange="uploadMulti(this,'aImgURLs','aImgPreview')"/><div class="upload-text">Extra photos (multiple)</div><div class="progress-bar"><div class="progress-fill" id="aImgURLsProg"></div></div></div>
+        <div id="aImgPreview" class="img-preview-grid"></div>
+        <input type="hidden" id="aImgURLs" value="[]"/>
+      </div>
+      <div class="modal-btns"><button class="admin-save-btn" onclick="saveAct()">Save →</button><button class="admin-danger-btn" onclick="closeModal('actModal')">Cancel</button></div>
+    </div>
+  </div>
+</div>
+
+<!-- Volunteer Modal -->
+<div class="modal-overlay" id="volModal">
+  <div class="modal-box">
+    <div class="modal-title">VOLUNTEER</div>
+    <input type="hidden" id="vIdx" value="-1"/>
+    <div class="admin-form">
+      <div><label class="admin-label">Title / Role</label><input class="admin-input" id="vTitle" placeholder="Blood Donation Drive Organiser"/></div>
+      <div><label class="admin-label">Organisation</label><input class="admin-input" id="vOrg" placeholder="NSS / Scout / Red Cross"/></div>
+      <div><label class="admin-label">Category</label><input class="admin-input" id="vCat" placeholder="Health / Education / Environment"/></div>
+      <div><label class="admin-label">Date / Period</label><input class="admin-input" id="vDate" placeholder="March 2023 / 2022–2023"/></div>
+      <div><label class="admin-label">Description</label><textarea class="admin-textarea" id="vDesc" placeholder="What did you do, how many people were impacted..."></textarea></div>
+      <div>
+        <label class="admin-label">Cover Image</label>
+        <div class="upload-area"><input type="file" accept="image/*" onchange="uploadSingle(this,'vCoverURL','vCoverPreview')"/><div class="upload-text">Upload cover image</div><div class="progress-bar"><div class="progress-fill" id="vCoverURLProg"></div></div></div>
+        <div id="vCoverPreview" class="img-preview-grid"></div>
+        <input type="hidden" id="vCoverURL"/>
+      </div>
+      <div>
+        <label class="admin-label">Additional Photos</label>
+        <div class="upload-area"><input type="file" accept="image/*" multiple onchange="uploadMulti(this,'vImgURLs','vImgPreview')"/><div class="upload-text">Upload photos (multiple)</div><div class="progress-bar"><div class="progress-fill" id="vImgURLsProg"></div></div></div>
+        <div id="vImgPreview" class="img-preview-grid"></div>
+        <input type="hidden" id="vImgURLs" value="[]"/>
+      </div>
+      <div class="modal-btns"><button class="admin-save-btn" onclick="saveVol()">Save</button><button class="admin-danger-btn" onclick="closeModal('volModal')">Cancel</button></div>
+    </div>
+  </div>
+</div>
+
+<div id="_toast" class="toast"></div>
+
+
+<script>
+// ══ DEFAULT CREDENTIALS (used only on first ever login before Firebase is set up)
+const DEFAULT_USER = 'Appu@257368419';
+const DEFAULT_PASS = 'Appu@120478';
+
+// ══ AUTH ══
+async function getCredentials() {
+  // Try Firebase — but use a hard timeout so it never hangs
+  if (db) {
+    try {
+      const timeout = new Promise((_,rej) => setTimeout(() => rej('timeout'), 3000));
+      const fetch   = db.collection('adminAuth').doc('credentials').get();
+      const doc     = await Promise.race([fetch, timeout]);
+      if (doc && doc.exists && doc.data().username) return doc.data();
+    } catch(e) { /* use defaults */ }
+  }
+  return { username: DEFAULT_USER, password: DEFAULT_PASS };
+}
+
+async function doLogin() {
+  const btn  = document.querySelector('#loginScreen .admin-save-btn');
+  const user = document.getElementById('loginUser').value.trim();
+  const pass = document.getElementById('loginPwd').value;
+  if (!user || !pass) return;
+  if (btn) btn.textContent = 'Checking...';
+
+  // FIRST: always check hardcoded defaults immediately (no network needed)
+  if (user === DEFAULT_USER && pass === DEFAULT_PASS) {
+    sessionStorage.setItem('aes_user', user);
+    setAdminLoggedIn();
+    showAdmin();
+    return;
+  }
+
+  // THEN: check if credentials were changed and stored in Firebase
+  const creds = await getCredentials();
+  if (btn) btn.textContent = 'Login →';
+  if (user === creds.username && pass === creds.password) {
+    sessionStorage.setItem('aes_user', user);
+    setAdminLoggedIn();
+    showAdmin();
+  } else {
+    document.getElementById('loginErr').style.display = 'block';
+    setTimeout(() => document.getElementById('loginErr').style.display = 'none', 3000);
+  }
+}
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && document.getElementById('loginScreen').style.display !== 'none') doLogin();
+});
+
+function doLogout() { clearAdminSession(); sessionStorage.removeItem('aes_user'); location.reload(); }
+
+function showAdmin() {
+  document.getElementById('loginScreen').style.display = 'none';
+  document.getElementById('adminScreen').style.display = 'block';
+  document.getElementById('adminUserDisplay').textContent = sessionStorage.getItem('aes_user') || DEFAULT_USER;
+  // inject nav
+  const m = document.getElementById('navMount');
+  if (m) m.innerHTML = renderNav('');
+  const ham = document.getElementById('navHamburger');
+  const links = document.getElementById('navLinks');
+  if (ham && links) ham.addEventListener('click', () => links.classList.toggle('open'));
+  // activate scroll obs
+  const obs = new IntersectionObserver(entries => entries.forEach(e => { if(e.isIntersecting) e.target.classList.add('visible'); }), {threshold:.12});
+  document.querySelectorAll('.fade-in').forEach(el => obs.observe(el));
+  loadAll();
+}
+
+// Auto-login if session still valid
+if (isAdminLoggedIn()) {
+  showAdmin();
+}
+
+// ══ CHANGE CREDENTIALS ══
+async function changeCredentials() {
+  const curr   = document.getElementById('secCurrent').value;
+  const newUser= document.getElementById('secUser').value.trim();
+  const newPass= document.getElementById('secNew').value;
+  const conf   = document.getElementById('secConfirm').value;
+  const errEl  = document.getElementById('secErr');
+  errEl.style.display = 'none';
+
+  const creds = await getCredentials();
+  if (curr !== creds.password) { errEl.textContent = 'Current password incorrect'; errEl.style.display='block'; return; }
+  if (!newUser) { errEl.textContent = 'Username cannot be empty'; errEl.style.display='block'; return; }
+  if (newPass.length < 6) { errEl.textContent = 'Password must be at least 6 characters'; errEl.style.display='block'; return; }
+  if (newPass !== conf) { errEl.textContent = 'Passwords do not match'; errEl.style.display='block'; return; }
+
+  try {
+    await db.collection('adminAuth').doc('credentials').set({ username: newUser, password: newPass });
+    showToast('Credentials updated! &check; Please log in again.');
+    setTimeout(() => doLogout(), 2000);
+  } catch(e) {
+    errEl.textContent = 'Firebase error. Check Firestore rules.'; errEl.style.display='block';
+  }
+}
+
+// ══ TABS ══
+function switchTab(btn, tab) {
+  document.querySelectorAll('.admin-tab').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.admin-section').forEach(s => s.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('tab-'+tab).classList.add('active');
+  if (tab === 'messages') loadMessages();
+}
+
+// ══ MODALS ══
+function openModal(id) { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+document.addEventListener('click', e => {
+  if (e.target.classList.contains('modal-overlay')) e.target.classList.remove('open');
+});
+
+// ══ FILE UPLOADS — Cloudinary ══
+const CLOUDINARY_CLOUD  = 'dhuudpoeg';
+const CLOUDINARY_PRESET = 'lapv1mye';
+
+async function uploadFile(file) {
+  const fd = new FormData();
+  fd.append('file', file);
+  fd.append('upload_preset', CLOUDINARY_PRESET);
+  const res  = await fetch('https://api.cloudinary.com/v1_1/' + CLOUDINARY_CLOUD + '/image/upload', { method:'POST', body:fd });
+  const data = await res.json();
+  if (!data.secure_url) throw new Error(data.error?.message || 'Upload failed');
+  return data.secure_url;
+}
+
+async function uploadSingle(input, urlId, previewId) {
+  const file = input.files[0]; if (!file) return;
+  const prog = document.getElementById(urlId + 'Prog');
+  if (prog) prog.style.width = '40%';
+  try {
+    const url = await uploadFile(file);
+    if (prog) { prog.style.width = '100%'; setTimeout(() => prog.style.width='0', 1000); }
+    document.getElementById(urlId).value = url;
+    const prev = document.getElementById(previewId);
+    prev.innerHTML = `<div class="img-preview"><img src="${url}"/><button class="img-preview-del" onclick="document.getElementById('${urlId}').value='';this.closest('.img-preview').remove()">&times;</button></div>`;
+  } catch(e) { showToast('Upload failed: ' + e.message, true); }
+}
+
+async function uploadMulti(input, urlsId, previewId) {
+  const files = input.files; if (!files.length) return;
+  const prog = document.getElementById(urlsId + 'Prog');
+  const prev = document.getElementById(previewId);
+  let urls = [];
+  try { urls = JSON.parse(document.getElementById(urlsId).value || '[]'); } catch(e) {}
+  for (let i = 0; i < files.length; i++) {
+    if (prog) prog.style.width = Math.round(((i+1)/files.length)*100) + '%';
+    try {
+      const url = await uploadFile(files[i]);
+      urls.push(url);
+      const d = document.createElement('div'); d.className='img-preview';
+      d.innerHTML = `<img src="${url}"/><button class="img-preview-del" onclick="rmURL('${urlsId}','${url}',this.closest('.img-preview'))">&times;</button>`;
+      prev.appendChild(d);
+    } catch(e) { showToast('Photo ' + (i+1) + ' failed: ' + e.message, true); }
+  }
+  document.getElementById(urlsId).value = JSON.stringify(urls);
+  if (prog) setTimeout(() => prog.style.width='0', 1000);
+}
+
+function rmURL(urlsId, url, el) {
+  let urls = JSON.parse(document.getElementById(urlsId).value || '[]');
+  urls = urls.filter(u => u !== url);
+  document.getElementById(urlsId).value = JSON.stringify(urls);
+  el.remove();
+}
+
+// ══ DATA STATE ══
+let skillsData = {languages:[],libraries:[],other:[]};
+let projectsList=[], expList=[], eduList=[], travelsList=[], actList=[];
+
+async function loadAll() {
+  // About
+  const ad = await getSiteData('about');
+  if (ad) { if(ad.para1) document.getElementById('ap1').value=ad.para1; if(ad.para2) document.getElementById('ap2').value=ad.para2; if(ad.para3) document.getElementById('ap3').value=ad.para3; if(ad.photoURL){document.getElementById('aboutPhotoURL').value=ad.photoURL;document.getElementById('aboutPhotoPreview').innerHTML=`<div class="img-preview"><img src="${ad.photoURL}"/></div>`;} }
+  // Skills
+  const sd = await getSiteData('skills'); if(sd&&sd.skills) skillsData=sd.skills; renderSkills();
+  // Projects
+  const pd = await getSiteData('projects'); if(pd&&pd.list) projectsList=pd.list; renderProjects();
+  // Exp
+  const ed = await getSiteData('experience'); if(ed&&ed.list) expList=ed.list; renderExp();
+  // Edu
+  const edd = await getSiteData('education'); if(edd&&edd.list) eduList=edd.list; renderEdu();
+  // Travels
+  const td = await getSiteData('travels'); if(td&&td.places) travelsList=td.places; renderTravels();
+  // Activities
+  const acdd = await getSiteData('activities'); if(acdd&&acdd.list) actList=acdd.list; renderActs();
+  // Volunteer
+  const vd = await getSiteData('volunteer'); if(vd&&vd.list) volList=vd.list; renderVol();
+  // Contact
+  const cd = await getSiteData('contact');
+  if(cd) { if(cd.email)document.getElementById('cEmail').value=cd.email; if(cd.instagram)document.getElementById('cInsta').value=cd.instagram; if(cd.linkedin)document.getElementById('cLinkedin').value=cd.linkedin; if(cd.github)document.getElementById('cGithub').value=cd.github; }
+}
+
+// ══ ABOUT SAVE ══
+async function saveAbout() {
+  await setSiteData('about',{para1:document.getElementById('ap1').value,para2:document.getElementById('ap2').value,para3:document.getElementById('ap3').value,photoURL:document.getElementById('aboutPhotoURL').value||null});
+  showToast('About saved &check;');
+}
+
+// ══ SKILLS ══
+function renderSkills() {
+  const all=[...skillsData.languages.map((s,i)=>({...s,cat:'languages',i})),...skillsData.libraries.map((s,i)=>({...s,cat:'libraries',i})),...skillsData.other.map((s,i)=>({...s,cat:'other',i}))];
+  document.getElementById('skillsList').innerHTML = all.length ? all.map(s=>`<div class="list-row"><div class=""><div class="list-row-title">${s.icon||''} ${s.name}</div><div class="list-row-sub">${s.cat} · ${s.level} · ${s.pct}%</div></div><div class="list-row-actions"><button class="edit-btn" onclick="editSkill('${s.cat}',${s.i})">Edit</button><button class="del-btn" onclick="delSkill('${s.cat}',${s.i})">Delete</button></div></div>`).join('') : '<div style="color:var(--muted);font-size:.85rem">No skills yet. Add one!</div>';
+}
+function openSkillModal(cat,idx) {
+  ['sName','sIcon','sDesc'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('sIdx').value=-1; document.getElementById('sCat').value='languages'; document.getElementById('sLevel').value='Learning'; document.getElementById('sPct').value=50;
+  if(cat!==undefined){const s=skillsData[cat][idx]; document.getElementById('sIdx').value=idx; document.getElementById('sCat').value=cat; document.getElementById('sName').value=s.name; document.getElementById('sIcon').value=s.icon||''; document.getElementById('sDesc').value=s.desc||''; document.getElementById('sLevel').value=s.level; document.getElementById('sPct').value=s.pct;}
+  openModal('skillModal');
+}
+function editSkill(cat,idx){openSkillModal(cat,idx);}
+async function saveSkill() {
+  const cat=document.getElementById('sCat').value, idx=parseInt(document.getElementById('sIdx').value);
+  const s={name:document.getElementById('sName').value,icon:document.getElementById('sIcon').value,desc:document.getElementById('sDesc').value,level:document.getElementById('sLevel').value,pct:parseInt(document.getElementById('sPct').value)};
+  if(idx===-1) skillsData[cat].push(s); else skillsData[cat][idx]=s;
+  await setSiteData('skills',{skills:skillsData}); renderSkills(); closeModal('skillModal'); showToast('Skill saved &check;');
+}
+async function delSkill(cat,idx){if(!confirm('Delete?'))return; skillsData[cat].splice(idx,1); await setSiteData('skills',{skills:skillsData}); renderSkills(); showToast('Deleted');}
+
+// ══ PROJECTS ══
+function renderProjects(){document.getElementById('projectsList').innerHTML=projectsList.length?projectsList.map((p,i)=>`<div class="list-row"><div class=""><div class="list-row-title">${p.title}</div><div class="list-row-sub">${(p.tags||[]).join(', ')}</div></div><div class="list-row-actions"><button class="edit-btn" onclick="openProjectModal(${i})">Edit</button><button class="del-btn" onclick="delItem('projects',${i})">Delete</button></div></div>`).join(''):'<div style="color:var(--muted);font-size:.85rem">No projects yet.</div>';}
+function openProjectModal(idx){
+  ['pTitle','pDesc','pTags','pLink'].forEach(id=>document.getElementById(id).value=''); document.getElementById('pImgURL').value=''; document.getElementById('pImgPreview').innerHTML=''; document.getElementById('pIdx').value=idx!==undefined?idx:-1;
+  if(idx!==undefined){const p=projectsList[idx]; document.getElementById('pTitle').value=p.title; document.getElementById('pDesc').value=p.description; document.getElementById('pTags').value=(p.tags||[]).join(', '); document.getElementById('pLink').value=p.link||''; document.getElementById('pImgURL').value=p.imageURL||''; if(p.imageURL) document.getElementById('pImgPreview').innerHTML=`<div class="img-preview"><img src="${p.imageURL}"/></div>`;}
+  openModal('projectModal');
+}
+async function saveProject(){const idx=parseInt(document.getElementById('pIdx').value); const p={title:document.getElementById('pTitle').value,description:document.getElementById('pDesc').value,tags:document.getElementById('pTags').value.split(',').map(t=>t.trim()).filter(Boolean),link:document.getElementById('pLink').value,imageURL:document.getElementById('pImgURL').value}; if(idx===-1) projectsList.push(p); else projectsList[idx]=p; await setSiteData('projects',{list:projectsList}); renderProjects(); closeModal('projectModal'); showToast('Project saved &check;');}
+
+// ══ EXPERIENCE ══
+function renderExp(){document.getElementById('expList').innerHTML=expList.length?expList.map((e,i)=>`<div class="list-row"><div class=""><div class="list-row-title">${e.role} @ ${e.company}</div><div class="list-row-sub">${e.period} · ${e.type}</div></div><div class="list-row-actions"><button class="edit-btn" onclick="openExpModal(${i})">Edit</button><button class="del-btn" onclick="delItem('experience',${i})">Delete</button></div></div>`).join(''):'<div style="color:var(--muted);font-size:.85rem">No experience yet.</div>';}
+function openExpModal(idx){['eRole','eCompany','ePeriod','eDesc','eTags'].forEach(id=>document.getElementById(id).value=''); document.getElementById('eIdx').value=idx!==undefined?idx:-1; if(idx!==undefined){const e=expList[idx]; document.getElementById('eRole').value=e.role; document.getElementById('eCompany').value=e.company; document.getElementById('eType').value=e.type; document.getElementById('ePeriod').value=e.period; document.getElementById('eDesc').value=e.description; document.getElementById('eTags').value=(e.tags||[]).join(', ');} openModal('expModal');}
+async function saveExp(){const idx=parseInt(document.getElementById('eIdx').value); const e={role:document.getElementById('eRole').value,company:document.getElementById('eCompany').value,type:document.getElementById('eType').value,period:document.getElementById('ePeriod').value,description:document.getElementById('eDesc').value,tags:document.getElementById('eTags').value.split(',').map(t=>t.trim()).filter(Boolean)}; if(idx===-1) expList.push(e); else expList[idx]=e; await setSiteData('experience',{list:expList}); renderExp(); closeModal('expModal'); showToast('Saved &check;');}
+
+// ══ EDUCATION ══
+function renderEdu(){document.getElementById('eduList').innerHTML=eduList.length?eduList.map((e,i)=>`<div class="list-row"><div class=""><div class="list-row-title">${e.institution}</div><div class="list-row-sub">${e.degree} · ${e.period}</div></div><div class="list-row-actions"><button class="edit-btn" onclick="openEduModal(${i})">Edit</button><button class="del-btn" onclick="delItem('education',${i})">Delete</button></div></div>`).join(''):'<div style="color:var(--muted);font-size:.85rem">No entries yet.</div>';}
+function openEduModal(idx){['edName','edDeg','edPeriod','edLoc','edMap'].forEach(id=>document.getElementById(id).value=''); document.getElementById('edIdx').value=idx!==undefined?idx:-1; if(idx!==undefined){const e=eduList[idx]; document.getElementById('edName').value=e.institution; document.getElementById('edDeg').value=e.degree; document.getElementById('edPeriod').value=e.period; document.getElementById('edLoc').value=e.location; document.getElementById('edMap').value=e.mapLink||'';} openModal('eduModal');}
+async function saveEdu(){const idx=parseInt(document.getElementById('edIdx').value); const e={institution:document.getElementById('edName').value,degree:document.getElementById('edDeg').value,period:document.getElementById('edPeriod').value,location:document.getElementById('edLoc').value,mapLink:document.getElementById('edMap').value}; if(idx===-1) eduList.push(e); else eduList[idx]=e; await setSiteData('education',{list:eduList}); renderEdu(); closeModal('eduModal'); showToast('Saved &check;');}
+
+// ══ TRAVELS ══
+function renderTravels(){document.getElementById('travelsList').innerHTML=travelsList.length?travelsList.map((p,i)=>`<div class="list-row"><div class=""><div class="list-row-title">${p.name}</div><div class="list-row-sub">${p.lat}, ${p.lng} · ${(p.images||[]).length} photo(s)</div></div><div class="list-row-actions"><button class="edit-btn" onclick="openTravelModal(${i})">Edit</button><button class="del-btn" onclick="delTravel(${i})">Delete</button></div></div>`).join(''):'<div style="color:var(--muted);font-size:.85rem">No places yet.</div>';}
+function openTravelModal(idx){['tName','tLat','tLng','tDesc'].forEach(id=>document.getElementById(id).value=''); document.getElementById('tImgURLs').value='[]'; document.getElementById('tImgPreview').innerHTML=''; document.getElementById('tIdx').value=idx!==undefined?idx:-1; if(idx!==undefined){const p=travelsList[idx]; document.getElementById('tName').value=p.name; document.getElementById('tLat').value=p.lat; document.getElementById('tLng').value=p.lng; document.getElementById('tDesc').value=p.desc||''; const imgs=p.images||[]; document.getElementById('tImgURLs').value=JSON.stringify(imgs); document.getElementById('tImgPreview').innerHTML=imgs.map(u=>`<div class="img-preview"><img src="${u}"/><button class="img-preview-del" onclick="rmURL('tImgURLs','${u}',this.closest('.img-preview'))">&times;</button></div>`).join('');} openModal('travelModal');}
+async function saveTravel(){const idx=parseInt(document.getElementById('tIdx').value); const p={name:document.getElementById('tName').value,lat:parseFloat(document.getElementById('tLat').value),lng:parseFloat(document.getElementById('tLng').value),desc:document.getElementById('tDesc').value,images:JSON.parse(document.getElementById('tImgURLs').value||'[]')}; if(idx===-1) travelsList.push(p); else travelsList[idx]=p; await setSiteData('travels',{places:travelsList}); renderTravels(); closeModal('travelModal'); showToast('Place saved &check;');}
+async function delTravel(idx){if(!confirm('Delete?'))return; travelsList.splice(idx,1); await setSiteData('travels',{places:travelsList}); renderTravels(); showToast('Deleted');}
+
+// ══ ACTIVITIES ══
+function renderActs(){document.getElementById('activitiesList').innerHTML=actList.length?actList.map((a,i)=>`<div class="list-row"><div class=""><div class="list-row-title">${a.title}</div><div class="list-row-sub">${a.category||''} · ${a.date||''}</div></div><div class="list-row-actions"><button class="edit-btn" onclick="openActModal(${i})">Edit</button><button class="del-btn" onclick="delItem('activities',${i})">Delete</button></div></div>`).join(''):'<div style="color:var(--muted);font-size:.85rem">No activities yet.</div>';}
+function openActModal(idx){['aTitle','aCat','aDate','aDesc'].forEach(id=>document.getElementById(id).value=''); document.getElementById('aCoverURL').value=''; document.getElementById('aCoverPreview').innerHTML=''; document.getElementById('aImgURLs').value='[]'; document.getElementById('aImgPreview').innerHTML=''; document.getElementById('aIdx').value=idx!==undefined?idx:-1; if(idx!==undefined){const a=actList[idx]; document.getElementById('aTitle').value=a.title; document.getElementById('aCat').value=a.category||''; document.getElementById('aDate').value=a.date||''; document.getElementById('aDesc').value=a.description||''; document.getElementById('aAlign').value=a.alignment||'left'; document.getElementById('aCoverURL').value=a.coverImage||''; if(a.coverImage) document.getElementById('aCoverPreview').innerHTML=`<div class="img-preview"><img src="${a.coverImage}"/></div>`; const imgs=a.images||[]; document.getElementById('aImgURLs').value=JSON.stringify(imgs); document.getElementById('aImgPreview').innerHTML=imgs.map(u=>`<div class="img-preview"><img src="${u}"/><button class="img-preview-del" onclick="rmURL('aImgURLs','${u}',this.closest('.img-preview'))">&times;</button></div>`).join('');} openModal('actModal');}
+async function saveAct(){const idx=parseInt(document.getElementById('aIdx').value); const a={title:document.getElementById('aTitle').value,category:document.getElementById('aCat').value,date:document.getElementById('aDate').value,description:document.getElementById('aDesc').value,alignment:document.getElementById('aAlign').value,coverImage:document.getElementById('aCoverURL').value,images:JSON.parse(document.getElementById('aImgURLs').value||'[]')}; if(idx===-1) actList.push(a); else actList[idx]=a; await setSiteData('activities',{list:actList}); renderActs(); closeModal('actModal'); showToast('Activity saved &check;');}
+
+// ══ CONTACT SAVE ══
+async function saveContact(){await setSiteData('contact',{email:document.getElementById('cEmail').value,instagram:document.getElementById('cInsta').value,linkedin:document.getElementById('cLinkedin').value,github:document.getElementById('cGithub').value}); showToast('Contact saved &check;');}
+
+// ══ MESSAGES ══
+async function loadMessages(){
+  try{
+    const snap=await db.collection('messages').orderBy('timestamp','desc').limit(50).get();
+    const msgs=snap.docs.map(d=>d.data());
+    if(!msgs.length){document.getElementById('messagesList').innerHTML='<div style="color:var(--muted);font-size:.85rem">No messages yet.</div>';return;}
+    document.getElementById('messagesList').innerHTML=`<div style="overflow-x:auto"><table class="messages-table"><thead><tr><th>Name</th><th>Email</th><th>Message</th><th>Date</th></tr></thead><tbody>${msgs.map(m=>`<tr><td>${m.name}</td><td><a href="mailto:${m.email}" style="color:var(--accent3)">${m.email}</a></td><td style="max-width:280px;word-break:break-word">${m.message}</td><td style="white-space:nowrap;color:var(--muted);font-size:.75rem">${m.timestamp?new Date(m.timestamp).toLocaleDateString():''}</td></tr>`).join('')}</tbody></table></div>`;
+  }catch(e){document.getElementById('messagesList').innerHTML='<div style="color:var(--accent2);font-size:.85rem">Could not load messages (check Firestore rules).</div>';}
+}
+
+// ══ GENERIC DELETE ══
+async function delItem(section, idx){
+  if(!confirm('Delete this item?'))return;
+  const map={projects:projectsList,experience:expList,education:eduList,activities:actList};
+  const renders={projects:renderProjects,experience:renderExp,education:renderEdu,activities:renderActs};
+  map[section].splice(idx,1);
+  await setSiteData(section,{list:map[section]});
+  renders[section]();
+  showToast('Deleted');
+}
+
+// ══ VOLUNTEER ══
+var volList = [];
+function renderVol() {
+  document.getElementById('volunteerList').innerHTML = volList.length
+    ? volList.map(function(v,i) {
+        return '<div class="list-row"><div class=""><div class="list-row-title">'+v.title+'</div><div class="list-row-sub">'+(v.organisation||'')+' · '+(v.date||'')+'</div></div><div class="list-row-actions"><button class="edit-btn" onclick="openVolModal('+i+')">Edit</button><button class="del-btn" onclick="delVol('+i+')">Delete</button></div></div>';
+      }).join('')
+    : '<div style="color:var(--muted);font-size:.85rem">No entries yet.</div>';
+}
+function openVolModal(idx) {
+  ['vTitle','vOrg','vCat','vDate','vDesc'].forEach(function(id){document.getElementById(id).value='';});
+  document.getElementById('vCoverURL').value=''; document.getElementById('vCoverPreview').innerHTML='';
+  document.getElementById('vImgURLs').value='[]'; document.getElementById('vImgPreview').innerHTML='';
+  document.getElementById('vIdx').value = idx !== undefined ? idx : -1;
+  if (idx !== undefined) {
+    var v = volList[idx];
+    document.getElementById('vTitle').value = v.title||'';
+    document.getElementById('vOrg').value   = v.organisation||'';
+    document.getElementById('vCat').value   = v.category||'';
+    document.getElementById('vDate').value  = v.date||'';
+    document.getElementById('vDesc').value  = v.description||'';
+    document.getElementById('vCoverURL').value = v.coverImage||'';
+    if (v.coverImage) document.getElementById('vCoverPreview').innerHTML='<div class="img-preview"><img src="'+v.coverImage+'"/></div>';
+    var imgs = v.images||[];
+    document.getElementById('vImgURLs').value = JSON.stringify(imgs);
+    document.getElementById('vImgPreview').innerHTML = imgs.map(function(u){return '<div class="img-preview"><img src="'+u+'"/><button class="img-preview-del" onclick="rmURL('vImgURLs',''+u+'',this.closest('.img-preview'))">&#10005;</button></div>';}).join('');
+  }
+  openModal('volModal');
+}
+async function saveVol() {
+  var idx = parseInt(document.getElementById('vIdx').value);
+  var v = {
+    title:        document.getElementById('vTitle').value,
+    organisation: document.getElementById('vOrg').value,
+    category:     document.getElementById('vCat').value,
+    date:         document.getElementById('vDate').value,
+    description:  document.getElementById('vDesc').value,
+    coverImage:   document.getElementById('vCoverURL').value,
+    images:       JSON.parse(document.getElementById('vImgURLs').value||'[]')
+  };
+  if (idx === -1) volList.push(v); else volList[idx] = v;
+  await setSiteData('volunteer', {list: volList});
+  renderVol(); closeModal('volModal'); showToast('Volunteer entry saved');
+}
+async function delVol(idx) {
+  if (!confirm('Delete this entry?')) return;
+  volList.splice(idx, 1);
+  await setSiteData('volunteer', {list: volList});
+  renderVol(); showToast('Deleted');
+}
+</script>
