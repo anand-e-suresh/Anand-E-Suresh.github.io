@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Activities — Anand E Suresh</title>
+<link rel="stylesheet" href="style.css"/>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script src="app.js"></script>
+</head>
+<body>
+<div id="navMount"></div>
+<div class="page">
+  <section class="section" style="padding-top:80px">
+    <div class="section-eyebrow fade-in">// Beyond Academics</div>
+    <h1 class="section-title fade-in">Activities</h1>
+    <div id="actGrid" class="activity-grid"></div>
+    <div id="emptyAct" style="padding:60px 0">
+      <div style="font-family:var(--font-mono);font-size:.65rem;color:var(--muted);letter-spacing:3px;text-transform:uppercase">Nothing here yet</div>
+      <div style="font-size:.85rem;color:var(--muted);margin-top:8px">Add activities via Admin Panel → Activities tab</div>
+    </div>
+  </section>
+</div>
+<div id="lightbox"><button id="lightbox-close">&#10005;</button><img id="lightbox-img" src="" alt=""/></div>
+<div id="_toast" class="toast"></div>
+<script>
+// Default shown before Firebase loads — matches what was hardcoded before
+var DEFAULT_ACTS = [
+  {
+    title: 'Scout & Community Service',
+    category: 'Scout',
+    description: 'As a Scout, I organised blood donation drives, hair donation campaigns for cancer patients, and various community outreach programmes — experiences that shaped my leadership and empathy.',
+    cover: '',
+    images: []
+  }
+];
+
+function openLB(src) {
+  document.getElementById('lightbox-img').src = src;
+  document.getElementById('lightbox').classList.add('open');
+}
+document.getElementById('lightbox-close').onclick = function() { document.getElementById('lightbox').classList.remove('open'); };
+document.getElementById('lightbox').onclick = function(e) { if (e.target === this) this.classList.remove('open'); };
+
+function actHTML(a) {
+  return '<div class="activity-card fade-in">'
+    + (a.cover ? '<img class="activity-img" src="'+a.cover+'" alt="'+a.title+'"/>' : '')
+    + '<div class="activity-body">'
+    + '<div class="activity-tag">'+(a.category||'Activity')+'</div>'
+    + '<div class="activity-title">'+a.title+'</div>'
+    + '<div class="activity-desc">'+(a.description||'')+'</div>'
+    + (a.date ? '<div style="font-family:var(--font-mono);font-size:.65rem;color:var(--muted);margin-top:10px;letter-spacing:1px">'+a.date+'</div>' : '')
+    + ((a.images && a.images.length) ? '<div class="act-img-grid">'+a.images.map(function(src){
+        return '<img src="'+src+'" onclick="openLB(\''+src+'\')" alt="Activity photo"/>';
+      }).join('')+'</div>' : '')
+    + '</div></div>';
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+  initPage();
+  // Show defaults immediately — page never blank
+  document.getElementById('emptyAct').style.display = 'none';
+  document.getElementById('actGrid').innerHTML = DEFAULT_ACTS.map(actHTML).join('');
+
+  getSiteData('activities').then(function(d) {
+    var list = (d && d.list && d.list.length) ? d.list : null;
+    if (list) {
+      document.getElementById('actGrid').innerHTML = list.map(actHTML).join('');
+    }
+    reObserve();
+  });
+});
+</script>
+</body>
+</html>

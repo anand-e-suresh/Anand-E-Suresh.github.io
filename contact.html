@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Contact — Anand E Suresh</title>
+<link rel="stylesheet" href="style.css"/>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script src="app.js"></script>
+<style>
+.c-item{display:flex;align-items:flex-start;gap:16px;padding:18px 20px;background:var(--bg3);border:1px solid var(--border);border-radius:10px;margin-bottom:14px;transition:all .2s}
+.c-item:hover{border-color:var(--accent3)}
+.c-icon{width:44px;height:44px;background:var(--bg);border:1px solid var(--border);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0}
+.c-label{font-family:'JetBrains Mono',monospace;font-size:.68rem;color:var(--muted);letter-spacing:2px;text-transform:uppercase;margin-bottom:4px}
+.c-val{font-size:.95rem;color:var(--text);text-decoration:none;word-break:break-all}
+a.c-val:hover{color:var(--accent)}
+</style>
+</head>
+<body>
+<div id="navMount"></div>
+<div class="page">
+  <section class="section" style="padding-top:80px">
+    <div class="section-eyebrow fade-in">// Say Hello</div>
+    <h1 class="section-title fade-in">Let's Connect</h1>
+    <div class="contact-grid">
+      <div class="fade-in">
+        <div class="c-item"><div class="c-icon"></div><div><div class="c-label">Email</div><a href="mailto:anandesuresh0306@gmail.com" class="c-val" id="cEmail">anandesuresh0306@gmail.com</a></div></div>
+        <div class="c-item"><div class="c-icon"></div><div><div class="c-label">Instagram</div><a href="https://www.instagram.com/_.__anand._._/" target="_blank" class="c-val" id="cInsta">@_.__anand._._</a></div></div>
+        <div class="c-item"><div class="c-icon"></div><div><div class="c-label">University</div><a href="https://plaksha.edu.in" target="_blank" class="c-val" id="cUni">Plaksha University, Punjab</a></div></div>
+        <div class="c-item"><div class="c-icon"></div><div><div class="c-label">LinkedIn</div><a href="#" class="c-val" id="cLinkedin">Add via Admin Panel</a></div></div>
+        <div class="c-item"><div class="c-icon"></div><div><div class="c-label">GitHub</div><a href="#" class="c-val" id="cGithub">Add via Admin Panel</a></div></div>
+      </div>
+      <div class="fade-in">
+        <p style="color:var(--muted);margin-bottom:24px;font-size:.95rem;line-height:1.7">I'm always open to connecting — whether it's about tech, travel stories, or just a good conversation. Drop me a message!</p>
+        <form class="contact-form" id="cForm">
+          <div class="form-group"><label>Your Name</label><input id="fn" placeholder="John Doe" required/></div>
+          <div class="form-group"><label>Your Email</label><input type="email" id="fe" placeholder="you@example.com" required/></div>
+          <div class="form-group"><label>Message</label><textarea id="fm" rows="5" placeholder="Hey Anand..." required></textarea></div>
+          <button type="submit" class="btn btn-primary" style="align-self:flex-start">Send Message →</button>
+        </form>
+      </div>
+    </div>
+  </section>
+</div>
+<div id="_toast" class="toast"></div>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  initPage();
+  getSiteData('contact').then(function(d) {
+    if (!d) return;
+    if (d.email)    { var el=document.getElementById('cEmail');    el.href='mailto:'+d.email; el.textContent=d.email; }
+    if (d.ig || d.instagram) { var ig=(d.ig||d.instagram); var el=document.getElementById('cInsta'); var handle=ig.replace('https://www.instagram.com/','').replace(/\/$/,''); if(!handle.startsWith('@'))handle='@'+handle; el.href='https://www.instagram.com/'+handle.replace('@',''); el.textContent=handle; }
+    if (d.linkedin) { var el=document.getElementById('cLinkedin'); el.href=d.linkedin; el.textContent=d.linkedin.replace('https://www.linkedin.com/in/','').replace('https://linkedin.com/in/','').replace(/\/$/,''); }
+    if (d.github)   { var el=document.getElementById('cGithub');   el.href=d.github;   el.textContent=d.github.replace('https://github.com/','').replace('https://www.github.com/','').replace(/\/$/,''); }
+    if (d.university) { var el=document.getElementById('cUni'); if(el){ el.textContent=d.university; } }
+    if (d.phone)    { var el=document.getElementById('cPhone'); if(el){ el.textContent=d.phone; } }
+  });
+  document.getElementById('cForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    db.collection('messages').add({
+      name: document.getElementById('fn').value,
+      email: document.getElementById('fe').value,
+      message: document.getElementById('fm').value,
+      timestamp: new Date().toISOString()
+    }).then(function() {
+      showToast('Message sent! ');
+      document.getElementById('cForm').reset();
+    }).catch(function() {
+      showToast('Could not send. Email directly!', true);
+    });
+  });
+});
+</script>
+</body>
+</html>
