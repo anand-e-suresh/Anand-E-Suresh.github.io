@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Skills — Anand E Suresh</title>
+<link rel="stylesheet" href="style.css"/>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
+<script src="app.js"></script>
+<style>
+.cat-label{font-family:'JetBrains Mono',monospace;font-size:.75rem;color:var(--accent3);letter-spacing:3px;text-transform:uppercase;margin-bottom:16px;padding-bottom:10px;border-bottom:1px solid var(--border)}
+.skill-row{background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:18px 22px;display:flex;align-items:center;gap:16px;transition:all .3s;margin-bottom:12px}
+.skill-row:hover{border-color:var(--accent);transform:translateX(6px)}
+.s-icon{width:40px;height:40px;background:var(--bg);border-radius:8px;border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0}
+.s-bar{width:100px;height:4px;background:var(--border);border-radius:2px;overflow:hidden}
+.s-fill{height:100%;background:linear-gradient(90deg,var(--accent),var(--accent3));border-radius:2px;width:0;transition:width 1s ease}
+@media(max-width:500px){.s-bar-wrap{display:none}}
+</style>
+</head>
+<body>
+<div id="navMount"></div>
+<div class="page">
+  <section class="section" style="padding-top:80px">
+    <div class="section-label fade-in">// What I Know</div>
+    <h1 class="section-title fade-in">Skills</h1>
+    <div id="skillsOut"></div>
+  </section>
+</div>
+<div id="_toast" class="toast"></div>
+<script>
+var DEFAULT_SKILLS = {
+  languages:[
+    {name:'C',icon:'',desc:'Systems programming & logic building',level:'Learning',pct:45},
+    {name:'C++',icon:'',desc:'Object-oriented programming & DSA',level:'Learning',pct:45},
+    {name:'Python',icon:'',desc:'Data, scripting & automation',level:'Comfortable',pct:60}
+  ],
+  libraries:[
+    {name:'NumPy',icon:'',desc:'Numerical computing with Python',level:'Familiar',pct:50},
+    {name:'Matplotlib',icon:'',desc:'Data visualisation & plotting',level:'Familiar',pct:50},
+    {name:'Random (Python)',icon:'',desc:'Random utilities & simulations',level:'Comfortable',pct:65}
+  ],
+  other:[
+    {name:'Problem Solving',icon:'',desc:'Structured thinking & logical decomposition',level:'Strong',pct:75},
+    {name:'Scout Leadership',icon:'',desc:'Teamwork, community service & leadership',level:'Experienced',pct:80}
+  ]
+};
+var CAT_LABELS = {languages:'Programming Languages',libraries:'Libraries & Tools',other:'Other Skills'};
+
+function skillHTML(s) {
+  return '<div class="skill-row fade-in">'
+    + '<div class="s-icon">'+(s.icon||'💡')+'</div>'
+    + '<div><div style="font-size:1rem;font-weight:700;color:var(--white)">'+(s.name)+'</div>'
+    + '<div style="font-size:.8rem;color:var(--muted);margin-top:2px">'+(s.desc||'')+'</div></div>'
+    + '<div class="s-bar-wrap" style="margin-left:auto;display:flex;align-items:center;gap:10px;flex-shrink:0">'
+    + '<div class="s-bar"><div class="s-fill" data-pct="'+(s.pct)+'"></div></div>'
+    + '<span style="font-family:\'JetBrains Mono\',monospace;font-size:.68rem;color:var(--muted);white-space:nowrap">'+(s.level)+'</span></div></div>';
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+  initPage();
+  getSiteData('skills').then(function(d) {
+    var s = (d && d.skills) ? d.skills : DEFAULT_SKILLS;
+    var html = '';
+    ['languages','libraries','other'].forEach(function(cat) {
+      var arr = s[cat] || DEFAULT_SKILLS[cat];
+      if (!arr || !arr.length) return;
+      html += '<div style="margin-bottom:48px" class="fade-in"><div class="cat-label">'+CAT_LABELS[cat]+'</div>'
+            + arr.map(skillHTML).join('') + '</div>';
+    });
+    document.getElementById('skillsOut').innerHTML = html;
+    reObserve();
+    setTimeout(function() {
+      document.querySelectorAll('.s-fill').forEach(function(b) { b.style.width = b.dataset.pct+'%'; });
+    }, 400);
+  });
+});
+</script>
+</body>
+</html>
